@@ -1,0 +1,62 @@
+﻿@page "/dataeditor"
+@using BlazorDatasheet.Render
+@using BlazorDatasheet.Core.Data
+@using BlazorDatasheet.Core.Formats
+@using BlazorDatasheet.Core.FormulaEngine
+
+@using Radzen
+@using Radzen.Blazor
+
+
+<PageTitle>Data Editor</PageTitle>
+
+<h1>Data Editor</h1>
+
+<RadzenLabel Text=@message />
+<br />
+<div class="rz-p-sm-1" style="background-color:whitesmoke;border-block:thin;border-block-color:lightgray;text-align:left">
+    <ToolBarEditorButton Click=@ButtonClicked Icon="save" IconColor="black" />
+    <span style="border-right: 2px solid #D3D3D3;" />
+    <ToolBarEditorButton Click=@ButtonClicked Icon="undo" IconColor="black" />
+    <ToolBarEditorButton Click=@ButtonClicked Icon="redo" IconColor="black" />
+    <span style="border-right: 2px solid #D3D3D3;" />
+    <span>&nbsp; Environment: </span>
+    <RadzenDropDown @bind-Value=@value Data=@companyNames Style="width: 300px; border-block:hidden" Name="DropDownBindValue" />
+    <span>&nbsp;</span>
+    <span style="border-right: 2px solid #D3D3D3;" />
+    <span>&nbsp; Table: </span>
+    <RadzenDropDown @bind-Value=@value Data=@companyNames Style="width: 300px; border-block:hidden" Name="DropDownBindValue" />
+    <span>&nbsp;</span>
+    <span style="border-right: 2px solid #D3D3D3;" />
+    <ToolBarEditorButton Click=@ButtonClicked Icon="download" IconColor="black" />
+</div>
+
+<div style="overflow: scroll; width: 700px; height: 400px;">
+
+    <Datasheet ShowColHeadings="true"
+               ShowRowHeadings="true"
+               Sheet="sheet" />
+
+</div>
+<button @onclick="@(() => sheet.SetFormat(sheet.Selection.Regions, new CellFormat() { BackgroundColor = "red" }))">Set format to red</button>
+<button @onclick="@(() => sheet.SetFormat(sheet.Selection.Regions, new CellFormat() { BackgroundColor = "blue" }))">Set format to blue</button>
+
+
+@code {
+
+    private Sheet sheet;
+    string message = "Hello, world!";
+    string value = "Around the Horn";
+    IEnumerable<string> companyNames;
+
+    protected override void OnInitialized()
+    {
+        sheet = new Sheet(numRows: 100000, numCols: 20000);
+        companyNames = new List<string> { "Around the Horn", "B's Beverages", "Consolidated Holdings", "Eastern Connection", "North/South", "Seven Seas Imports", "Island Trading", "Königlich Essen", "Laughing Bacchus Wine Cellars", "Magazzini Alimentari Riuniti", "Paris spécialités", "Simons bistro", "The Big Cheese", "Vaffeljernet", "Wolski Zajazd" };
+    }
+
+    void ButtonClicked()
+    {
+        message = "Clicked!";
+    }
+}

@@ -6,45 +6,48 @@
 
 @using Radzen
 @using Radzen.Blazor
-
+@using Radzen.Blazor.Rendering
+@inject DialogService DialogService
 
 <PageTitle>Data Editor</PageTitle>
 
 <h1>Data Editor</h1>
 
-<RadzenLabel Text=@message />
 <br />
 <div class="rz-p-sm-1" style="background-color:whitesmoke;border-block:thin;border-block-color:lightgray;text-align:left">
-    <ToolBarEditorButton Click=@ButtonClicked Icon="save" IconColor="black" />
+    <ToolBarEditorButton Click=@btnSave Icon="save" IconColor="black" />
     <span style="border-right: 2px solid #D3D3D3;" />
-    <ToolBarEditorButton Click=@ButtonClicked Icon="undo" IconColor="black" />
-    <ToolBarEditorButton Click=@ButtonClicked Icon="redo" IconColor="black" />
+    <ToolBarEditorButton Click="() => sheet.Commands.Undo()" Icon="undo" IconColor="black" Title="Undo" />
+    <ToolBarEditorButton Click="() => sheet.Commands.Redo()" Icon="redo" IconColor="black" Title="Redo" />
     <span style="border-right: 2px solid #D3D3D3;" />
-    <span>&nbsp; Environment: </span>
-    <RadzenDropDown @bind-Value=@value Data=@companyNames Style="width: 300px; border-block:hidden" Name="DropDownBindValue" />
-    <span>&nbsp;</span>
+    <ToolBarEditorButton Click=@InsertRowAfterSelection Icon="input" IconColor="black" Title="Insert Row" />
+    <ToolBarEditorButton Click=@RemoveRow Icon="logout" IconColor="black" Title="Delete Row" />
+    <span style="border-right: 2px solid #D3D3D3;" />
+    <ToolBarEditorButton Click=@InsertColAfterSelection Icon="file_upload" IconColor="black" Title="Insert Column" />
+    <ToolBarEditorButton Click=@RemoveCol Icon="download" IconColor="black" Title="Delete Column" />
     <span style="border-right: 2px solid #D3D3D3;" />
     <span>&nbsp; Table: </span>
     <RadzenDropDown @bind-Value=@value Data=@companyNames Style="width: 300px; border-block:hidden" Name="DropDownBindValue" />
     <span>&nbsp;</span>
     <span style="border-right: 2px solid #D3D3D3;" />
-    <ToolBarEditorButton Click=@ButtonClicked Icon="download" IconColor="black" />
+    <ToolBarEditorButton Click=@btnExport Icon="download_for_offline" IconColor="black" Title="Export" />
+    <ToolBarEditorButton Click="@ShowInlineDialog" Icon="settings" IconColor="black" Title="Settings" />
 </div>
 
-<div style="overflow: scroll; width: 700px; height: 400px;">
+<div style="overflow: scroll; width: 800px; height: 400px;">
 
     <Datasheet ShowColHeadings="true"
                ShowRowHeadings="true"
                Sheet="sheet" />
 
 </div>
-<button @onclick="@(() => sheet.SetFormat(sheet.Selection.Regions, new CellFormat() { BackgroundColor = "red" }))">Set format to red</button>
-<button @onclick="@(() => sheet.SetFormat(sheet.Selection.Regions, new CellFormat() { BackgroundColor = "blue" }))">Set format to blue</button>
+<RadzenLabel Text=@message />
 
 
 @code {
 
     private Sheet sheet;
+
     string message = "Hello, world!";
     string value = "Around the Horn";
     IEnumerable<string> companyNames;
@@ -52,11 +55,70 @@
     protected override void OnInitialized()
     {
         sheet = new Sheet(numRows: 100000, numCols: 20000);
-        companyNames = new List<string> { "Around the Horn", "B's Beverages", "Consolidated Holdings", "Eastern Connection", "North/South", "Seven Seas Imports", "Island Trading", "Königlich Essen", "Laughing Bacchus Wine Cellars", "Magazzini Alimentari Riuniti", "Paris spécialités", "Simons bistro", "The Big Cheese", "Vaffeljernet", "Wolski Zajazd" };
+        companyNames = new List<string> { "Customers", "B's Beverages", "Consolidated Holdings", "Eastern Connection", "North/South", "Seven Seas Imports", "Island Trading", "Königlich Essen", "Laughing Bacchus Wine Cellars", "Magazzini Alimentari Riuniti", "Paris spécialités", "Simons bistro", "The Big Cheese", "Vaffeljernet", "Wolski Zajazd" };
     }
 
-    void ButtonClicked()
+    async Task ShowInlineDialog()
     {
-        message = "Clicked!";
+        var result = await DialogService.OpenAsync("Simple Dialog", ds =>
+    @<RadzenStack Gap="1.5rem">
+        <p>Confirm Order ID ?</p>
+        <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem" AlignItems="AlignItems.Center" JustifyContent="JustifyContent.SpaceBetween">
+            <RadzenStack Orientation="Orientation.Horizontal">
+                <RadzenButton Text="Ok" Click="() => ds.Close(true)" Style="width: 80px;" />
+                <RadzenButton Text="Cancel" Click="() => ds.Close(false)" ButtonStyle="ButtonStyle.Light" />
+            </RadzenStack>
+        </RadzenStack>
+    </RadzenStack>);
+    }
+
+    private void btnSave()
+    {
+        message = "Save button clicked";
+    }
+
+    private void btnExport()
+    {
+        message = "Export button clicked";
+    }
+
+    private void InsertRowAfterSelection()
+    {
+        if (sheet.Selection.ActiveRegion == null)
+        {
+            return;
+        }
+
+        sheet.Rows.InsertRowAt(sheet.Selection.ActiveRegion.TopLeft.row);
+    }
+
+    private void InsertColAfterSelection()
+    {
+        if (sheet.Selection.ActiveRegion == null)
+        {
+            return;
+        }
+
+        sheet.Columns.InsertAt(sheet.Selection.ActiveRegion.TopLeft.col);
+    }
+
+    private void RemoveCol()
+    {
+        if (sheet.Selection.ActiveRegion == null)
+        {
+            return;
+        }
+
+        sheet.Columns.RemoveAt(sheet.Selection.ActiveRegion.Left);
+    }
+
+    private void RemoveRow()
+    {
+        if (sheet.Selection.ActiveRegion == null)
+        {
+            return;
+        }
+
+        sheet.Rows.RemoveAt(sheet.Selection.ActiveRegion.Top);
     }
 }

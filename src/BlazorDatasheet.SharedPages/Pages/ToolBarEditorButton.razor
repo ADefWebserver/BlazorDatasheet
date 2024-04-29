@@ -1,3 +1,4 @@
+@inherits RadzenComponent
 <button type="button" style="vertical-align:baseline;" tabindex=" -1" @onclick=@OnClick class=@Class title=@GetTitle()>
     <i class="rzi" style="@(!string.IsNullOrEmpty(IconColor) ? $"color:{IconColor}" : null)">@Icon</i>
 </button>

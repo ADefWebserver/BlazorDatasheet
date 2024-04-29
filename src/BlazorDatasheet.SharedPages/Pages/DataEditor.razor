@@ -7,12 +7,13 @@
 @using Radzen
 @using Radzen.Blazor
 @using Radzen.Blazor.Rendering
+@using System.Text;
 @inject DialogService DialogService
 
 <PageTitle>Data Editor</PageTitle>
 
 <h1>Data Editor</h1>
-
+<RadzenLabel Text=@ErrorMessage />
 <br />
 <div class="rz-p-sm-1" style="background-color:whitesmoke;border-block:thin;border-block-color:lightgray;text-align:left">
     <ToolBarEditorButton Click=@btnSave Icon="save" IconColor="black" />
@@ -41,15 +42,13 @@
                Sheet="sheet" />
 
 </div>
-<RadzenLabel Text=@message />
-
 
 @code {
 
     private Sheet sheet;
 
-    string message = "Hello, world!";
-    string value = "Around the Horn";
+    string ErrorMessage = "";
+    string value = "Customers";
     IEnumerable<string> companyNames;
 
     protected override void OnInitialized()
@@ -57,29 +56,15 @@
         sheet = new Sheet(numRows: 100000, numCols: 20000);
         companyNames = new List<string> { "Customers", "B's Beverages", "Consolidated Holdings", "Eastern Connection", "North/South", "Seven Seas Imports", "Island Trading", "Königlich Essen", "Laughing Bacchus Wine Cellars", "Magazzini Alimentari Riuniti", "Paris spécialités", "Simons bistro", "The Big Cheese", "Vaffeljernet", "Wolski Zajazd" };
     }
-
-    async Task ShowInlineDialog()
-    {
-        var result = await DialogService.OpenAsync("Simple Dialog", ds =>
-    @<RadzenStack Gap="1.5rem">
-        <p>Confirm Order ID ?</p>
-        <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem" AlignItems="AlignItems.Center" JustifyContent="JustifyContent.SpaceBetween">
-            <RadzenStack Orientation="Orientation.Horizontal">
-                <RadzenButton Text="Ok" Click="() => ds.Close(true)" Style="width: 80px;" />
-                <RadzenButton Text="Cancel" Click="() => ds.Close(false)" ButtonStyle="ButtonStyle.Light" />
-            </RadzenStack>
-        </RadzenStack>
-    </RadzenStack>);
-    }
-
+        
     private void btnSave()
     {
-        message = "Save button clicked";
+        ErrorMessage = "Save button clicked";
     }
 
     private void btnExport()
     {
-        message = "Export button clicked";
+        ErrorMessage = "Export button clicked";
     }
 
     private void InsertRowAfterSelection()
@@ -121,4 +106,231 @@
 
         sheet.Rows.RemoveAt(sheet.Selection.ActiveRegion.Top);
     }
+
+    // Database Connection
+
+    public class ConnectionSetting
+    {
+        public string DatabaseName { get; set; }
+        public string ServerName { get; set; }
+        public bool IntegratedSecurity { get; set; }
+        public string Username { get; set; }
+        public string Password { get; set; }
+    }
+
+    public class DTOStatus
+    {
+        public string StatusMessage { get; set; }
+        public bool Success { get; set; }
+    }
+
+    private ConnectionSetting connectionSetting = new ConnectionSetting();
+    string IntegratedSecurityDisplay = "True";
+    List<string> OptionsTrueFalse = new List<string>() { "True", "False" };
+    string strStatusMessage = "";
+    bool boolProcessing = false;
+
+    private string DatabaseName = "AdventureWorks2012";
+    private string ServerName = "(local)";
+    private string DatabaseUsername = "";
+    private string DatabasePassword = "";
+
+    async Task ShowInlineDialog()
+    {
+        var result = await DialogService.OpenAsync("Database Connection", ds =>
+    @<RadzenStack Gap="1.5rem">
+        <table class="form-group" cellpadding="4" cellspacing="4">
+            <tbody>
+                <tr>
+                    <td>
+                        <label for="Title" class="control-label" style="font-weight: bold">Server: </label>
+                    </td>
+                    <td>
+                        <input type="text" id="ServerName" class="form-control" @bind="ServerName" />
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+                        <label for="Title" class="control-label" style="font-weight: bold">Database: </label>
+                    </td>
+                    <td>
+                        <input type="text" id="DatabaseName" class="form-control" @bind="DatabaseName" />
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+                        <label for="Title" class="control-label" style="font-weight: bold">Integrated Security: </label>
+                    </td>
+                    <td>
+                        <RadzenDropDown @bind-Value=@IntegratedSecurityDisplay Data=@OptionsTrueFalse Style="width: 300px;" Change=@(() => UpdateDialog(ds)) />
+                    </td>
+                </tr>
+                @if (IntegratedSecurityDisplay == "False")
+            {
+                <tr>
+                    <td>
+                        <label for="Title" class="control-label" style="font-weight: bold">Database Username: </label>
+                    </td>
+                    <td>
+                        <input type="text" id="DatabaseUsername" class="form-control" @bind="DatabaseUsername" />
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+                        <label for="Title" class="control-label" style="font-weight: bold">Database Password: </label>
+                    </td>
+                    <td>
+                        <input type="password" id="DatabasePassword" class="form-control" @bind="DatabasePassword" />
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+
+        <table class="form-group" cellpadding="4" cellspacing="4">
+            <tbody>
+                <tr>
+                    <td>
+                        @if (boolProcessing == false)
+                    {
+                        <button type="button" label="Set Database Connection"
+                                class="btn btn-success"
+                                @onclick=@(() => setConnection(ds))>
+                            Set Connection
+                        </button>
+                    }
+                    else
+                    {
+                        <RadzenProgressBar Value="100" ShowValue="false" Mode="ProgressBarMode.Indeterminate" Style="margin-bottom: 20px" />
+                        <span>Processing...</span>
+                    }
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h4>@strStatusMessage</h4>
+    </RadzenStack>);
+    }
+
+    private void UpdateDialog(DialogService paramDS)
+    {
+        strStatusMessage = "";
+        paramDS.Refresh();
+    }
+
+    private async void setConnection(DialogService paramDS)
+    {
+        boolProcessing = true;
+        strStatusMessage = "";
+
+        paramDS.Refresh();
+
+        connectionSetting.DatabaseName = DatabaseName;
+        connectionSetting.IntegratedSecurity = Convert.ToBoolean(IntegratedSecurityDisplay);
+        connectionSetting.Password = DatabasePassword;
+        connectionSetting.ServerName = ServerName;
+        connectionSetting.Username = DatabaseUsername;
+
+        var result = await SetConnectionSetting(connectionSetting);
+
+        if (result.Success)
+        {
+            // Notify parent component
+            //await DatabaseConfigurationChanged.InvokeAsync(true);
+        }
+        else
+        {
+            strStatusMessage = result.StatusMessage;
+        }
+
+        boolProcessing = false;
+        StateHasChanged();
+    }
+
+    // Utility
+
+    #region public async Task<DTOStatus> SetConnectionSetting(ConnectionSetting objConnectionSetting)
+    public async Task<DTOStatus> SetConnectionSetting(ConnectionSetting objConnectionSetting)
+    {
+        // The return message
+        DTOStatus objDTOStatus = new DTOStatus();
+        objDTOStatus.Success = true;
+
+        // Create a Database connection string
+        string strConnectionString = CreateDatabaseConnectionString(objConnectionSetting);
+
+        // Test the database connection string
+        if (await DatabaseConnectionValid(strConnectionString))
+        {
+            try
+            {
+                // Update the appsettings.json file
+                //await UpdateDatabaseConnectionString(strConnectionString);
+            }
+            catch (Exception ex)
+            {
+                // appsettings.json file update error
+                objDTOStatus.Success = false;
+                objDTOStatus.StatusMessage = ex.GetBaseException().Message;
+            }
+        }
+        else
+        {
+            // Bad connection setting
+            objDTOStatus.Success = false;
+            objDTOStatus.StatusMessage = "Connection settings are not valid";
+        }
+
+        // Return the result
+        return objDTOStatus;
+    }
+    #endregion
+
+    #region private string CreateDatabaseConnectionString(ConnectionSetting objConnectionSetting)
+    private string CreateDatabaseConnectionString(ConnectionSetting objConnectionSetting)
+    {
+        StringBuilder SB = new StringBuilder();
+        string strConnectionString = "";
+
+        string strUserInfo = (!objConnectionSetting.IntegratedSecurity) ?
+            String.Format("uid={0};pwd={1}",
+            objConnectionSetting.Username,
+            objConnectionSetting.Password) :
+            "integrated security=True";
+
+        strConnectionString = String.Format("{0}data source={1};initial catalog={2};{3}",
+            SB.ToString(),
+            objConnectionSetting.ServerName,
+            objConnectionSetting.DatabaseName,
+            strUserInfo);
+
+        return strConnectionString;
+    }
+    #endregion
+
+    #region private async Task<bool> DatabaseConnectionValid(string strConnectionString)
+    private async Task<bool> DatabaseConnectionValid(string strConnectionString)
+    {
+        bool boolDatabaseConnectionValid = false;
+
+        // // Try to connect to the database
+        // var optionsBuilder = new DbContextOptionsBuilder<ADefHelpDeskContext>();
+        // optionsBuilder.UseSqlServer(strConnectionString);
+
+        // using (var context = new ADefHelpDeskContext(optionsBuilder.Options))
+        // {
+        //     try
+        //     {
+        //         boolDatabaseConnectionValid = await context.Database.CanConnectAsync();
+        //     }
+        //     catch
+        //     {
+        //         boolDatabaseConnectionValid = false;
+        //     }
+        // }
+
+        return boolDatabaseConnectionValid;
+    }
+    #endregion
 }

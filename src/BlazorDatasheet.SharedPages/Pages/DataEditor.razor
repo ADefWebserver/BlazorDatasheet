@@ -4,6 +4,7 @@
 @using BlazorDatasheet.Core.Formats
 @using BlazorDatasheet.Core.FormulaEngine
 
+@using Microsoft.Data.SqlClient
 @using Radzen
 @using Radzen.Blazor
 @using Radzen.Blazor.Rendering
@@ -44,7 +45,7 @@
 </div>
 
 @code {
-
+    #nullable disable
     private Sheet sheet;
 
     string ErrorMessage = "";
@@ -54,7 +55,7 @@
     protected override void OnInitialized()
     {
         sheet = new Sheet(numRows: 100000, numCols: 20000);
-        companyNames = new List<string> { "Customers", "B's Beverages", "Consolidated Holdings", "Eastern Connection", "North/South", "Seven Seas Imports", "Island Trading", "Königlich Essen", "Laughing Bacchus Wine Cellars", "Magazzini Alimentari Riuniti", "Paris spécialités", "Simons bistro", "The Big Cheese", "Vaffeljernet", "Wolski Zajazd" };
+        companyNames = new List<string> { "Customers", "Orders", "Logs" };
     }
         
     private void btnSave()
@@ -107,7 +108,9 @@
         sheet.Rows.RemoveAt(sheet.Selection.ActiveRegion.Top);
     }
 
+    // ********************************************************************************************************************
     // Database Connection
+    // ********************************************************************************************************************
 
     public class ConnectionSetting
     {
@@ -210,7 +213,8 @@
         </table>
 
         <h4>@strStatusMessage</h4>
-    </RadzenStack>);
+    </RadzenStack>
+    );
     }
 
     private void UpdateDialog(DialogService paramDS)
@@ -236,8 +240,7 @@
 
         if (result.Success)
         {
-            // Notify parent component
-            //await DatabaseConfigurationChanged.InvokeAsync(true);
+            paramDS.Close();
         }
         else
         {
@@ -265,8 +268,7 @@
         {
             try
             {
-                // Update the appsettings.json file
-                //await UpdateDatabaseConnectionString(strConnectionString);
+                objDTOStatus.Success = true;
             }
             catch (Exception ex)
             {
@@ -314,21 +316,20 @@
     {
         bool boolDatabaseConnectionValid = false;
 
-        // // Try to connect to the database
-        // var optionsBuilder = new DbContextOptionsBuilder<ADefHelpDeskContext>();
-        // optionsBuilder.UseSqlServer(strConnectionString);
+        // Try to connect to the database
 
-        // using (var context = new ADefHelpDeskContext(optionsBuilder.Options))
-        // {
-        //     try
-        //     {
-        //         boolDatabaseConnectionValid = await context.Database.CanConnectAsync();
-        //     }
-        //     catch
-        //     {
-        //         boolDatabaseConnectionValid = false;
-        //     }
-        // }
+        try
+        {
+            using (SqlConnection connection = new SqlConnection(strConnectionString))
+            {
+                connection.Open();
+                boolDatabaseConnectionValid = true;
+            }
+        }
+        catch
+        {
+            boolDatabaseConnectionValid = false;
+        }
 
         return boolDatabaseConnectionValid;
     }

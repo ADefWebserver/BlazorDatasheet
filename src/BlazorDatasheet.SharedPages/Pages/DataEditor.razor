@@ -9,6 +9,7 @@
 @using Radzen.Blazor
 @using Radzen.Blazor.Rendering
 @using System.Text;
+@using System.Data
 @inject DialogService DialogService
 
 <PageTitle>Data Editor</PageTitle>
@@ -29,7 +30,7 @@
     <ToolBarEditorButton Click=@RemoveCol Icon="download" IconColor="black" Title="Delete Column" />
     <span style="border-right: 2px solid #D3D3D3;" />
     <span>&nbsp; Table: </span>
-    <RadzenDropDown @bind-Value=@value Data=@companyNames Style="width: 300px; border-block:hidden" Name="DropDownBindValue" />
+    <RadzenDropDown @bind-Value=@selectedTable Data=@tableNames Change=@(args => LoadTableData(args.ToString())) Style="width: 300px; border-block:hidden" Name="DropDownBindValue" />
     <span>&nbsp;</span>
     <span style="border-right: 2px solid #D3D3D3;" />
     <ToolBarEditorButton Click=@btnExport Icon="download_for_offline" IconColor="black" Title="Export" />
@@ -45,19 +46,26 @@
 </div>
 
 @code {
-    #nullable disable
+#nullable disable
     private Sheet sheet;
 
     string ErrorMessage = "";
-    string value = "Customers";
-    IEnumerable<string> companyNames;
+    string selectedTable = "";
+    new List<string> tableNames = new List<string> { };
+
+    string DatabaseConnectionString = "";
 
     protected override void OnInitialized()
     {
         sheet = new Sheet(numRows: 100000, numCols: 20000);
-        companyNames = new List<string> { "Customers", "Orders", "Logs" };
     }
-        
+
+    protected override async Task OnInitializedAsync()
+    {
+
+    }
+
+    #region Datasheet Events
     private void btnSave()
     {
         ErrorMessage = "Save button clicked";
@@ -107,11 +115,24 @@
 
         sheet.Rows.RemoveAt(sheet.Selection.ActiveRegion.Top);
     }
+    #endregion
 
     // ********************************************************************************************************************
     // Database Connection
     // ********************************************************************************************************************
 
+    private ConnectionSetting connectionSetting = new ConnectionSetting();
+    string IntegratedSecurityDisplay = "True";
+    List<string> OptionsTrueFalse = new List<string>() { "True", "False" };
+    string strStatusMessage = "";
+    bool boolProcessing = false;
+
+    private string DatabaseName = "AdventureWorks2012";
+    private string ServerName = "(local)";
+    private string DatabaseUsername = "";
+    private string DatabasePassword = "";
+
+    #region Classes
     public class ConnectionSetting
     {
         public string DatabaseName { get; set; }
@@ -126,18 +147,9 @@
         public string StatusMessage { get; set; }
         public bool Success { get; set; }
     }
+    #endregion
 
-    private ConnectionSetting connectionSetting = new ConnectionSetting();
-    string IntegratedSecurityDisplay = "True";
-    List<string> OptionsTrueFalse = new List<string>() { "True", "False" };
-    string strStatusMessage = "";
-    bool boolProcessing = false;
-
-    private string DatabaseName = "AdventureWorks2012";
-    private string ServerName = "(local)";
-    private string DatabaseUsername = "";
-    private string DatabasePassword = "";
-
+    #region async Task ShowInlineDialog()
     async Task ShowInlineDialog()
     {
         var result = await DialogService.OpenAsync("Database Connection", ds =>
@@ -216,13 +228,17 @@
     </RadzenStack>
     );
     }
+    #endregion
 
+    #region private void UpdateDialog(DialogService paramDS)
     private void UpdateDialog(DialogService paramDS)
     {
         strStatusMessage = "";
         paramDS.Refresh();
     }
+    #endregion
 
+    #region private void setConnection(DialogService paramDS)
     private void setConnection(DialogService paramDS)
     {
         boolProcessing = true;
@@ -241,6 +257,7 @@
         if (result.Success)
         {
             paramDS.Close();
+            GetTablesInDatabase();
         }
         else
         {
@@ -250,6 +267,71 @@
         boolProcessing = false;
         StateHasChanged();
     }
+    #endregion
+
+    #region private void GetTablesInDatabase()
+    private void GetTablesInDatabase()
+    {
+        // Use the DatabaseConnectionString to get the tables in the database
+        using (SqlConnection connection = new SqlConnection(DatabaseConnectionString))
+        {
+            connection.Open();
+
+            // Get the tables in the database
+            DataTable dt = connection.GetSchema("Tables");
+
+            // Get the table names
+            foreach (DataRow row in dt.Rows)
+            {
+                // Ensure that the table is not a system table
+                if (row[3].ToString() == "BASE TABLE")
+                {
+                    string tablename = $"{(string)row[1]}.{(string)row[2]}";
+                    tableNames.Add(tablename);
+                }
+            }
+
+            connection.Close();
+
+            // order the table names
+            tableNames.Sort();
+
+            // Set the value to the first table
+            if (tableNames.Count > 0)
+            {
+                selectedTable = tableNames[0];
+            }
+
+            if (selectedTable != "")
+            {
+                LoadTableData(selectedTable);
+            }
+        }
+    }
+    #endregion
+
+    #region private void LoadTableData(string paramSelectedTable)
+    private void LoadTableData(string paramSelectedTable)
+    {
+        selectedTable = paramSelectedTable;
+        // Use the DatabaseConnectionString to get the data from the selected table
+        using (SqlConnection connection = new SqlConnection(DatabaseConnectionString))
+        {
+            connection.Open();
+
+            // Get the data from the selected table
+            string sql = "SELECT * FROM " + selectedTable;
+            SqlDataAdapter adapter = new SqlDataAdapter(sql, connection);
+            DataTable dt = new DataTable();
+            adapter.Fill(dt);
+
+            // Load the data into the datasheet
+            
+
+            connection.Close();
+        }
+    }
+    #endregion
 
     // Utility
 
@@ -301,7 +383,7 @@
             objConnectionSetting.Password) :
             "integrated security=True";
 
-        strConnectionString = String.Format("{0}data source={1};initial catalog={2};{3}; TrustServerCertificate=True",
+        strConnectionString = String.Format("{0}data source={1};initial catalog={2};{3};TrustServerCertificate=True",
             SB.ToString(),
             objConnectionSetting.ServerName,
             objConnectionSetting.DatabaseName,
@@ -324,6 +406,7 @@
             {
                 connection.Open();
                 boolDatabaseConnectionValid = true;
+                DatabaseConnectionString = strConnectionString;
             }
         }
         catch

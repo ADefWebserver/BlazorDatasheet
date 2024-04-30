@@ -223,7 +223,7 @@
         paramDS.Refresh();
     }
 
-    private async void setConnection(DialogService paramDS)
+    private void setConnection(DialogService paramDS)
     {
         boolProcessing = true;
         strStatusMessage = "";
@@ -236,7 +236,7 @@
         connectionSetting.ServerName = ServerName;
         connectionSetting.Username = DatabaseUsername;
 
-        var result = await SetConnectionSetting(connectionSetting);
+        var result = SetConnectionSetting(connectionSetting);
 
         if (result.Success)
         {
@@ -253,8 +253,8 @@
 
     // Utility
 
-    #region public async Task<DTOStatus> SetConnectionSetting(ConnectionSetting objConnectionSetting)
-    public async Task<DTOStatus> SetConnectionSetting(ConnectionSetting objConnectionSetting)
+    #region public DTOStatus SetConnectionSetting(ConnectionSetting objConnectionSetting)
+    public DTOStatus SetConnectionSetting(ConnectionSetting objConnectionSetting)
     {
         // The return message
         DTOStatus objDTOStatus = new DTOStatus();
@@ -264,7 +264,7 @@
         string strConnectionString = CreateDatabaseConnectionString(objConnectionSetting);
 
         // Test the database connection string
-        if (await DatabaseConnectionValid(strConnectionString))
+        if (DatabaseConnectionValid(strConnectionString))
         {
             try
             {
@@ -301,7 +301,7 @@
             objConnectionSetting.Password) :
             "integrated security=True";
 
-        strConnectionString = String.Format("{0}data source={1};initial catalog={2};{3}",
+        strConnectionString = String.Format("{0}data source={1};initial catalog={2};{3}; TrustServerCertificate=True",
             SB.ToString(),
             objConnectionSetting.ServerName,
             objConnectionSetting.DatabaseName,
@@ -311,8 +311,8 @@
     }
     #endregion
 
-    #region private async Task<bool> DatabaseConnectionValid(string strConnectionString)
-    private async Task<bool> DatabaseConnectionValid(string strConnectionString)
+    #region private bool DatabaseConnectionValid(string strConnectionString)
+    private bool DatabaseConnectionValid(string strConnectionString)
     {
         bool boolDatabaseConnectionValid = false;
 

@@ -26,9 +26,6 @@
     <ToolBarEditorButton Click=@InsertRowAfterSelection Icon="input" IconColor="black" Title="Insert Row" />
     <ToolBarEditorButton Click=@RemoveRow Icon="logout" IconColor="black" Title="Delete Row" />
     <span style="border-right: 2px solid #D3D3D3;" />
-    <ToolBarEditorButton Click=@InsertColAfterSelection Icon="file_upload" IconColor="black" Title="Insert Column" />
-    <ToolBarEditorButton Click=@RemoveCol Icon="download" IconColor="black" Title="Delete Column" />
-    <span style="border-right: 2px solid #D3D3D3;" />
     <span>&nbsp; Table: </span>
     <RadzenDropDown @bind-Value=@selectedTable Data=@tableNames Change=@(args => LoadTableData(args.ToString())) Style="width: 300px; border-block:hidden" Name="DropDownBindValue" />
     <span>&nbsp;</span>
@@ -37,21 +34,34 @@
     <ToolBarEditorButton Click="@ShowInlineDialog" Icon="settings" IconColor="black" Title="Settings" />
 </div>
 
-<div style="overflow: scroll; width: 800px; height: 400px;">
+@if(isLoading)
+{
+    <div class="rz-p-sm-1" style="background-color:whitesmoke;border-block:thin;border-block-color:lightgray;text-align:left">
+        <RadzenProgressBar Value="100" ShowValue="false" Mode="ProgressBarMode.Indeterminate" Style="margin-bottom: 20px" />
+        <span>Processing...</span>
+    </div>
+}
+else
+{
+    <div style="overflow: scroll; width: 800px; height: 400px;">
 
-    <Datasheet ShowColHeadings="true"
-               ShowRowHeadings="true"
-               Sheet="sheet" />
+        <Datasheet ShowColHeadings="true"
+                   ShowRowHeadings="true"
+                   Sheet="sheet" />
 
-</div>
+    </div>
+}
 
 @code {
 #nullable disable
     private Sheet sheet;
 
+    bool isLoading = false;
     string ErrorMessage = "";
     string selectedTable = "";
-    new List<string> tableNames = new List<string> { };
+
+    List<string> tableNames = new List<string> { };
+    List<DTODatabaseColumn> TableColumns = new List<DTODatabaseColumn>();
 
     string DatabaseConnectionString = "";
 
@@ -84,26 +94,6 @@
         }
 
         sheet.Rows.InsertRowAt(sheet.Selection.ActiveRegion.TopLeft.row);
-    }
-
-    private void InsertColAfterSelection()
-    {
-        if (sheet.Selection.ActiveRegion == null)
-        {
-            return;
-        }
-
-        sheet.Columns.InsertAt(sheet.Selection.ActiveRegion.TopLeft.col);
-    }
-
-    private void RemoveCol()
-    {
-        if (sheet.Selection.ActiveRegion == null)
-        {
-            return;
-        }
-
-        sheet.Columns.RemoveAt(sheet.Selection.ActiveRegion.Left);
     }
 
     private void RemoveRow()
@@ -146,6 +136,12 @@
     {
         public string StatusMessage { get; set; }
         public bool Success { get; set; }
+    }
+
+    public class DTODatabaseColumn
+    {
+        public string ColumnName { get; set; }
+        public string ColumnType { get; set; }
     }
     #endregion
 
@@ -314,22 +310,93 @@
     private void LoadTableData(string paramSelectedTable)
     {
         selectedTable = paramSelectedTable;
+
+        isLoading = true;
+        StateHasChanged();
+
         // Use the DatabaseConnectionString to get the data from the selected table
         using (SqlConnection connection = new SqlConnection(DatabaseConnectionString))
         {
             connection.Open();
 
-            // Get the data from the selected table
-            string sql = "SELECT * FROM " + selectedTable;
-            SqlDataAdapter adapter = new SqlDataAdapter(sql, connection);
-            DataTable dt = new DataTable();
-            adapter.Fill(dt);
+            try
+            {
+                // Get the data from the selected table
+                string sql = "SELECT * FROM " + selectedTable;
+                SqlDataAdapter adapter = new SqlDataAdapter(sql, connection);
+                DataTable dt = new DataTable();
+                adapter.Fill(dt);
 
-            // Load the data into the datasheet
-            
+                // Get a list of the column names
+                TableColumns = new List<DTODatabaseColumn>();
 
-            connection.Close();
+                foreach (DataColumn column in dt.Columns)
+                {
+                    DTODatabaseColumn objTableColumns = new DTODatabaseColumn();
+
+                    objTableColumns.ColumnName = column.ColumnName;
+                    objTableColumns.ColumnType = column.DataType.ToString();
+
+                    TableColumns.Add(objTableColumns);
+                }
+
+                connection.Close();
+
+                // Create Table Headers
+                SetTableHeadersAndData(TableColumns, dt);
+            }
+            catch (Exception ex)
+            {
+                ErrorMessage = ex.GetBaseException().Message;
+
+                if(connection.State == ConnectionState.Open)
+                {
+                    connection.Close();
+                }
+
+                isLoading = false;
+                StateHasChanged();
+            }
         }
+
+        isLoading = false;
+        StateHasChanged();
+    }
+    #endregion
+
+    #region private void SetTableHeadersAndData(List<DTODatabaseColumn> paramDatabaseColumns, DataTable paramDataTable)
+    private void SetTableHeadersAndData(List<DTODatabaseColumn> paramDatabaseColumns, DataTable paramDataTable)
+    {
+        // Create sheet with the number of columns
+        sheet = new Sheet(paramDataTable.Rows.Count, paramDatabaseColumns.Count);
+
+        // Turn off history
+        sheet.BatchUpdates();
+        sheet.Commands.PauseHistory();       
+
+        int i = 0;
+        foreach (DTODatabaseColumn objDatabaseColumn in paramDatabaseColumns)
+        {
+            sheet.Columns.SetHeadings(i, i, objDatabaseColumn.ColumnName);
+            i++;
+        }
+
+        int ii = 0;
+        foreach (DataRow dataRow in paramDataTable.Rows)
+        {        
+            i = 0;
+            foreach (DTODatabaseColumn objDatabaseColumn in paramDatabaseColumns)
+            {
+                sheet.Cells[ii, i].Value = dataRow[i].ToString();
+                i++;
+            }
+
+            ii++;
+        }
+
+        // Turn on history
+        sheet.EndBatchUpdates();
+        sheet.Commands.ResumeHistory();
     }
     #endregion
 

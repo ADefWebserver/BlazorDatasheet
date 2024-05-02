@@ -268,8 +268,10 @@ else
     #endregion
 
     #region private void GetTablesInDatabase()
-    private void GetTablesInDatabase()
+    private async Task GetTablesInDatabase()
     {
+        tableNames = new List<string>();
+
         // Use the DatabaseConnectionString to get the tables in the database
         using (SqlConnection connection = new SqlConnection(DatabaseConnectionString))
         {
@@ -302,7 +304,17 @@ else
 
             if (selectedTable != "")
             {
+                isLoading = true;
+                StateHasChanged();
+
+                // Wait 1 second before loading the table data
+                // to join the UI thread
+                await Task.Delay(1000);
+
                 LoadTableData(selectedTable);
+
+                isLoading = false;
+                StateHasChanged();
             }
         }
     }

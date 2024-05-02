@@ -323,12 +323,13 @@ else
 
             try
             {
+                // Get the primary keys for the table
+                List<string> PrimaryKeys = GetPrimaryKey(connection, selectedTable);
 
                 // Get a list of the column names
                 TableColumns = new List<DTODatabaseColumn>();
 
                 DataTable Columns = connection.GetSchema("Columns");
-                DataTable indexes = connection.GetSchema("Indexes");
 
                 foreach (DataRow row in Columns.Rows)
                 {
@@ -339,44 +340,25 @@ else
                         objTableColumns.ColumnName = row["COLUMN_NAME"].ToString();
                         objTableColumns.ColumnType = row["DATA_TYPE"].ToString();
 
-                        foreach (DataRow IndexRow in indexes.Rows)
+                        if (row["CHARACTER_MAXIMUM_LENGTH"] != DBNull.Value)
                         {
-                            if (IndexRow["TABLE_NAME"].ToString() == $"{IndexRow["TABLE_SCHEMA"].ToString()}.{IndexRow["TABLE_NAME"].ToString()}" && IndexRow["COLUMN_NAME"].ToString() == row["COLUMN_NAME"].ToString())
-                            {
-                                objTableColumns.ColumnLength = Convert.ToInt32(IndexRow["MAX_LENGTH"]);
-                                objTableColumns.IsPrimaryKey = Convert.ToBoolean(row["PRIMARY_KEY"]);
-                            }
+                            objTableColumns.ColumnLength = Convert.ToInt32(row["CHARACTER_MAXIMUM_LENGTH"]);
+                        }
+
+                        if (PrimaryKeys.Contains(row["COLUMN_NAME"].ToString()))
+                        {
+                            objTableColumns.IsPrimaryKey = true;
                         }
 
                         TableColumns.Add(objTableColumns);
                     }
                 }
-                
 
                 // Get the data from the selected table
                 string sql = "SELECT * FROM " + selectedTable;
                 SqlDataAdapter adapter = new SqlDataAdapter(sql, connection);
                 DataTable dt = new DataTable();
                 adapter.Fill(dt);
-
-                // Get a list of the column names
-                // TableColumns = new List<DTODatabaseColumn>();
-
-                // foreach (DataColumn column in dt.Columns)
-                // {
-                //     DTODatabaseColumn objTableColumns = new DTODatabaseColumn();
-
-                //     objTableColumns.ColumnName = column.ColumnName;
-                //     objTableColumns.ColumnType = column.DataType.ToString();
-                //     objTableColumns.ColumnLength = column.MaxLength;
-
-                //     if (primaryKeys.Contains(column.ColumnName))
-                //     {
-                //         objTableColumns.IsPrimaryKey = true;
-                //     }
-
-                //     TableColumns.Add(objTableColumns);
-                // }
 
                 connection.Close();
 
@@ -527,6 +509,40 @@ else
         }
 
         return boolDatabaseConnectionValid;
+    }
+    #endregion
+
+    #region public List<string> GetPrimaryKey(SqlConnection connection, string tableName)
+    public List<string> GetPrimaryKey(SqlConnection connection, string tableName)
+    {
+        List<string> PrimaryKeys = new List<string>();
+
+        try
+        {
+            string query = $@"
+                    SELECT c.Name
+                    FROM sys.index_columns ic
+                    INNER JOIN sys.columns c ON ic.object_id = c.object_id AND ic.column_id = c.column_id
+                    INNER JOIN sys.indexes i ON i.object_id = ic.object_id AND i.index_id = ic.index_id
+                    WHERE i.is_primary_key = 1 AND ic.object_id = OBJECT_ID('{tableName}')";
+
+            using (SqlCommand command = new SqlCommand(query, connection))
+            {
+                using (SqlDataReader reader = command.ExecuteReader())
+                {
+                    if (reader.Read())
+                    {
+                        if (reader["Name"] != DBNull.Value)
+                        {
+                            PrimaryKeys.Add(reader["Name"].ToString());
+                        }
+                    }
+                }
+            }
+        }
+        catch { }
+
+        return PrimaryKeys;
     }
     #endregion
 }

@@ -34,7 +34,7 @@
     <ToolBarEditorButton Click="@ShowInlineDialog" Icon="settings" IconColor="black" Title="Settings" />
 </div>
 
-@if(isLoading)
+@if (isLoading)
 {
     <div class="rz-p-sm-1" style="background-color:whitesmoke;border-block:thin;border-block-color:lightgray;text-align:left">
         <RadzenProgressBar Value="100" ShowValue="false" Mode="ProgressBarMode.Indeterminate" Style="margin-bottom: 20px" />
@@ -142,6 +142,8 @@ else
     {
         public string ColumnName { get; set; }
         public string ColumnType { get; set; }
+        public int ColumnLength { get; set; }
+        public bool IsPrimaryKey { get; set; }
     }
     #endregion
 
@@ -321,6 +323,36 @@ else
 
             try
             {
+
+                // Get a list of the column names
+                TableColumns = new List<DTODatabaseColumn>();
+
+                DataTable Columns = connection.GetSchema("Columns");
+                DataTable indexes = connection.GetSchema("Indexes");
+
+                foreach (DataRow row in Columns.Rows)
+                {
+                    if ($"{row["TABLE_SCHEMA"].ToString()}.{row["TABLE_NAME"].ToString()}" == selectedTable)
+                    {
+                        DTODatabaseColumn objTableColumns = new DTODatabaseColumn();
+
+                        objTableColumns.ColumnName = row["COLUMN_NAME"].ToString();
+                        objTableColumns.ColumnType = row["DATA_TYPE"].ToString();
+
+                        foreach (DataRow IndexRow in indexes.Rows)
+                        {
+                            if (IndexRow["TABLE_NAME"].ToString() == $"{IndexRow["TABLE_SCHEMA"].ToString()}.{IndexRow["TABLE_NAME"].ToString()}" && IndexRow["COLUMN_NAME"].ToString() == row["COLUMN_NAME"].ToString())
+                            {
+                                objTableColumns.ColumnLength = Convert.ToInt32(IndexRow["MAX_LENGTH"]);
+                                objTableColumns.IsPrimaryKey = Convert.ToBoolean(row["PRIMARY_KEY"]);
+                            }
+                        }
+
+                        TableColumns.Add(objTableColumns);
+                    }
+                }
+                
+
                 // Get the data from the selected table
                 string sql = "SELECT * FROM " + selectedTable;
                 SqlDataAdapter adapter = new SqlDataAdapter(sql, connection);
@@ -328,17 +360,23 @@ else
                 adapter.Fill(dt);
 
                 // Get a list of the column names
-                TableColumns = new List<DTODatabaseColumn>();
+                // TableColumns = new List<DTODatabaseColumn>();
 
-                foreach (DataColumn column in dt.Columns)
-                {
-                    DTODatabaseColumn objTableColumns = new DTODatabaseColumn();
+                // foreach (DataColumn column in dt.Columns)
+                // {
+                //     DTODatabaseColumn objTableColumns = new DTODatabaseColumn();
 
-                    objTableColumns.ColumnName = column.ColumnName;
-                    objTableColumns.ColumnType = column.DataType.ToString();
+                //     objTableColumns.ColumnName = column.ColumnName;
+                //     objTableColumns.ColumnType = column.DataType.ToString();
+                //     objTableColumns.ColumnLength = column.MaxLength;
 
-                    TableColumns.Add(objTableColumns);
-                }
+                //     if (primaryKeys.Contains(column.ColumnName))
+                //     {
+                //         objTableColumns.IsPrimaryKey = true;
+                //     }
+
+                //     TableColumns.Add(objTableColumns);
+                // }
 
                 connection.Close();
 
@@ -349,7 +387,7 @@ else
             {
                 ErrorMessage = ex.GetBaseException().Message;
 
-                if(connection.State == ConnectionState.Open)
+                if (connection.State == ConnectionState.Open)
                 {
                     connection.Close();
                 }
@@ -372,7 +410,7 @@ else
 
         // Turn off history
         sheet.BatchUpdates();
-        sheet.Commands.PauseHistory();       
+        sheet.Commands.PauseHistory();
 
         int i = 0;
         foreach (DTODatabaseColumn objDatabaseColumn in paramDatabaseColumns)
@@ -383,11 +421,18 @@ else
 
         int ii = 0;
         foreach (DataRow dataRow in paramDataTable.Rows)
-        {        
+        {
             i = 0;
             foreach (DTODatabaseColumn objDatabaseColumn in paramDatabaseColumns)
             {
                 sheet.Cells[ii, i].Value = dataRow[i].ToString();
+                sheet.Cells[ii, i].Type = objDatabaseColumn.ColumnType;
+
+                if (objDatabaseColumn.IsPrimaryKey)
+                {
+                    sheet.Cells[ii, i].Format = new CellFormat() { IsReadOnly = true };
+                }
+
                 i++;
             }
 

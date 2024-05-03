@@ -119,7 +119,12 @@
         Sheet.BatchUpdates();
         Sheet.Commands.PauseHistory();
         Sheet.Validators.Add(4, 0, new NumberValidator(true));
-        Sheet.Validators.Add(1, 3, src);
+
+        Sheet.Validators.Add(1, 3, new SourceValidator(new List<string>()
+        {
+            "Option 1",
+            "Option 2"
+        }, false));
 
         Sheet.Cells[0, 0].Value = "Blazor datasheet";
         Sheet.Range("A1:D1")!.Merge();

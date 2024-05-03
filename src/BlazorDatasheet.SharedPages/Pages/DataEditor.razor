@@ -1,4 +1,7 @@
 ﻿@page "/dataeditor"
+@using BlazorDatasheet.Core.Interfaces
+@using BlazorDatasheet.Core.Validation
+@using BlazorDatasheet.Formula.Core
 @using BlazorDatasheet.Render
 @using BlazorDatasheet.Core.Data
 @using BlazorDatasheet.Core.Formats
@@ -30,6 +33,7 @@
     <RadzenDropDown @bind-Value=@selectedTable Data=@tableNames Change=@(args => LoadTableData(args.ToString())) Style="width: 300px; border-block:hidden" Name="DropDownBindValue" />
     <span>&nbsp;</span>
     <span style="border-right: 2px solid #D3D3D3;" />
+    <RadzenCheckBox @bind-Value=@UseValidation Name="CheckBoxValidation" /><RadzenLabel Text="Validators" Component="CheckBoxValidation" Style="margin-left: 8px; vertical-align: middle;" />
     <ToolBarEditorButton Click=@btnExport Icon="download_for_offline" IconColor="black" Title="Export" />
     <ToolBarEditorButton Click="@ShowInlineDialog" Icon="settings" IconColor="black" Title="Settings" />
 </div>
@@ -53,10 +57,11 @@ else
 }
 
 @code {
-#nullable disable
+    #nullable disable
     private Sheet sheet;
 
     bool isLoading = false;
+    bool UseValidation = false;
     string ErrorMessage = "";
     string selectedTable = "";
 
@@ -72,7 +77,11 @@ else
 
     protected override async Task OnInitializedAsync()
     {
+        // Wait 1 second before loading the table data
+        // to join the UI thread
+        await Task.Delay(1000);
 
+        await ShowInlineDialog();
     }
 
     #region Datasheet Events
@@ -356,18 +365,29 @@ else
                         {
                             objTableColumns.ColumnLength = Convert.ToInt32(row["CHARACTER_MAXIMUM_LENGTH"]);
                         }
+                        else
+                        {
+                            objTableColumns.ColumnLength = 0;
+                        }
 
                         if (PrimaryKeys.Contains(row["COLUMN_NAME"].ToString()))
                         {
                             objTableColumns.IsPrimaryKey = true;
+                        }
+                        else
+                        {
+                            objTableColumns.IsPrimaryKey = false;
                         }
 
                         TableColumns.Add(objTableColumns);
                     }
                 }
 
+                // Get Table names from TableColumns as comma seperated values
+                string strTableNames = string.Join(",", TableColumns.Select(x => $"[{x.ColumnName}]").ToArray());
+
                 // Get the data from the selected table
-                string sql = "SELECT * FROM " + selectedTable;
+                string sql = $"SELECT {strTableNames} FROM {selectedTable}";
                 SqlDataAdapter adapter = new SqlDataAdapter(sql, connection);
                 DataTable dt = new DataTable();
                 adapter.Fill(dt);
@@ -421,6 +441,27 @@ else
             {
                 sheet.Cells[ii, i].Value = dataRow[i].ToString();
                 sheet.Cells[ii, i].Type = objDatabaseColumn.ColumnType;
+
+                // Integer Validator
+                if (objDatabaseColumn.ColumnType.Contains("int"))
+                {
+                    if (UseValidation)
+                    {
+                        sheet.Validators.Add(ii, i, new NumberValidator(false));
+                    }
+                }
+
+                // Length Validator
+                if (objDatabaseColumn.ColumnLength > 0)
+                {
+                    if (objDatabaseColumn.ColumnType.Contains("char"))
+                    {
+                        if (UseValidation)
+                        {
+                            sheet.Validators.Add(ii, i, new LengthValidator(objDatabaseColumn.ColumnLength, true)); 
+                        }
+                    }                    
+                }
 
                 if (objDatabaseColumn.IsPrimaryKey)
                 {
@@ -555,6 +596,32 @@ else
         catch { }
 
         return PrimaryKeys;
+    }
+    #endregion    
+
+    // Validators
+
+    #region private class LengthValidator : IDataValidator
+    private class LengthValidator : IDataValidator
+    {
+        private readonly int _length;
+        public bool IsStrict { get; }
+        public string Message => $"Maximum length is {_length}";
+
+        public LengthValidator(int Length, bool isStrict)
+        {
+            IsStrict = isStrict;
+            _length = Length;
+        }
+
+        public bool IsValid(CellValue value)
+        {
+            if (value.ValueType != CellValueType.Text)
+                return false;
+
+            var str = (string)value.Data!;
+            return str.Length <= _length;
+        }
     }
     #endregion
 }

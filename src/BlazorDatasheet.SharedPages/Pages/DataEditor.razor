@@ -21,7 +21,7 @@
 <RadzenLabel Text=@ErrorMessage />
 <br />
 <div class="rz-p-sm-1" style="background-color:whitesmoke;border-block:thin;border-block-color:lightgray;text-align:left">
-    <ToolBarEditorButton Click=@btnSave Icon="save" IconColor="black" />
+    <ToolBarEditorButton Click=@btnSave Disabled=@SavingDisabled Icon="save" IconColor="black" />
     <span style="border-right: 2px solid #D3D3D3;" />
     <ToolBarEditorButton Click="() => sheet.Commands.Undo()" Icon="undo" IconColor="black" Title="Undo" />
     <ToolBarEditorButton Click="() => sheet.Commands.Redo()" Icon="redo" IconColor="black" Title="Redo" />
@@ -57,11 +57,12 @@ else
 }
 
 @code {
-    #nullable disable
+#nullable disable
     private Sheet sheet;
 
     bool isLoading = false;
     bool UseValidation = false;
+    bool SavingDisabled = false;
     string ErrorMessage = "";
     string selectedTable = "";
 
@@ -87,6 +88,11 @@ else
     #region Datasheet Events
     private void btnSave()
     {
+        if(SavingDisabled)
+        {
+            return;
+        }
+
         ErrorMessage = "Save button clicked";
     }
 
@@ -233,6 +239,39 @@ else
 
         <h4>@strStatusMessage</h4>
     </RadzenStack>
+           );
+    }
+    #endregion
+
+    #region async Task ShowPrimaryKeyWarningDialog()
+    async Task ShowPrimaryKeyWarningDialog()
+    {
+        var result = await DialogService.OpenAsync("Primary Key Warning", ds =>
+    @<RadzenStack Gap="1.5rem">
+        <table class="form-group" cellpadding="4" cellspacing="4">
+            <tbody>
+                <tr>
+                    <td>
+                        <label style="font-weight: bold">Table has no Primay Key - Saving will be disabled</label>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+
+        <table class="form-group" cellpadding="4" cellspacing="4">
+            <tbody>
+                <tr>
+                    <td>
+                        <button type="button" label="Set Database Connection"
+                                class="btn btn-success"
+                                @onclick=@(() => ds.Close())>
+                            Ok
+                        </button>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </RadzenStack>
     );
     }
     #endregion
@@ -320,7 +359,7 @@ else
                 // to join the UI thread
                 await Task.Delay(1000);
 
-                LoadTableData(selectedTable);
+                await LoadTableData(selectedTable);
 
                 isLoading = false;
                 StateHasChanged();
@@ -329,8 +368,8 @@ else
     }
     #endregion
 
-    #region private void LoadTableData(string paramSelectedTable)
-    private void LoadTableData(string paramSelectedTable)
+    #region private async Task LoadTableData(string paramSelectedTable)
+    private async Task LoadTableData(string paramSelectedTable)
     {
         selectedTable = paramSelectedTable;
 
@@ -393,6 +432,17 @@ else
                 adapter.Fill(dt);
 
                 connection.Close();
+
+                // See if there are any primary keys
+                if (PrimaryKeys.Count == 0)
+                {
+                    SavingDisabled = true;
+                    await ShowPrimaryKeyWarningDialog();
+                }
+                else
+                {
+                    SavingDisabled = false;
+                }   
 
                 // Create Table Headers
                 SetTableHeadersAndData(TableColumns, dt);
@@ -458,9 +508,9 @@ else
                     {
                         if (UseValidation)
                         {
-                            sheet.Validators.Add(ii, i, new LengthValidator(objDatabaseColumn.ColumnLength, true)); 
+                            sheet.Validators.Add(ii, i, new LengthValidator(objDatabaseColumn.ColumnLength, true));
                         }
-                    }                    
+                    }
                 }
 
                 if (objDatabaseColumn.IsPrimaryKey)
@@ -597,7 +647,7 @@ else
 
         return PrimaryKeys;
     }
-    #endregion    
+    #endregion
 
     // Validators
 

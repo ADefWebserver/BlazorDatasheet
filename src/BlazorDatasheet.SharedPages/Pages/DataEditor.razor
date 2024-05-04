@@ -126,7 +126,7 @@ else
     string strStatusMessage = "";
     bool boolProcessing = false;
 
-    private string DatabaseName = "AdventureWorks2012";
+    private string DatabaseName = "AdventureWorksLT2019";
     private string ServerName = "(local)";
     private string DatabaseUsername = "";
     private string DatabasePassword = "";
@@ -245,8 +245,8 @@ else
     }
     #endregion
 
-    #region private void setConnection(DialogService paramDS)
-    private void setConnection(DialogService paramDS)
+    #region private async Task setConnection(DialogService paramDS)
+    private async Task setConnection(DialogService paramDS)
     {
         boolProcessing = true;
         strStatusMessage = "";
@@ -264,7 +264,7 @@ else
         if (result.Success)
         {
             paramDS.Close();
-            GetTablesInDatabase();
+            await GetTablesInDatabase();
         }
         else
         {

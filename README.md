@@ -13,12 +13,39 @@ A simple datasheet component for editing tabular data.
 - Formula
 - Keyboard navigation
 - Copy and paste from tabulated data
-- Virtualization - _handles_ many cells at once in both rows & cols.
+- Virtualization - handles many cells at once in both rows & cols.
 
 Demo: https://anmcgrath.github.io/BlazorDatasheet/
 
 ### Getting Started
 
+#### Install the NuGet package
+
+```bash
+dotnet add package BlazorDatasheet --version 0.2.0
+```
+
+#### Configure Program.cs
+
+In Program.cs, add the required services:
+
+```csharp
+builder.Services.AddBlazorDatasheet();
+```
+
+#### Import JS/CSS
+
+In _Layout.cshtml or index.html add
+
+```htmlinblazor
+<link href="_content/BlazorDatasheet/sheet-styles.css" rel="stylesheet"/>
+```
+
+and
+
+```htmlinblazor
+<script src="_content/BlazorDatasheet/blazor-datasheet.js" type="text/javascript"></script>
+```
 
 Blazor Datasheet provides a **Datasheet** Blazor component that accepts a Sheet.
 
@@ -119,11 +146,10 @@ var colRegion = new ColumnRegion(0, 4); // col region spanning A to D
 var rowRegion = new RowRegion(0, 3); // row region spanning 1 to 4
 ```
 
-A range is a collection of regions that also knows about the sheet. Ranges can be used to set certain parts of the sheet.
+A range is a of region that also knows about the sheet. Ranges can be used to set certain parts of the sheet.
 
 ```csharp
-var range = sheet.Range("A1:C5, B2:B7");
+var range = sheet.Range("A1:C5);
 var range = sheet.Range(new ColumnRegion(0));
-var range = sheet.Range(regions);
 var range = sheet.Range(0, 0, 4, 5);
 ```

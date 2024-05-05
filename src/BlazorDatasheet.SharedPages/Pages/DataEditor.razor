@@ -543,61 +543,11 @@ else
     #region private void SaveData()
     private void SaveData()
     {
-        // Convert sheet data to a DataTable
-        DataTable dtInsert = ConvertSheetToDataTable(sheet);
+        // Detect rows that have changed
+        //var changedRows = sheet....Where(r => r.IsChanged).ToList();
 
-        // table.Columns.Add(nameof(Person.Id), typeof(string));
-        // table.Columns.Add(nameof(Person.Name), typeof(string));
-        // table.Columns.Add(nameof(Person.BirthDate), typeof(DateTime));
-        // table.Columns.Add(nameof(Person.FavoriteMovie), typeof(string));
-        // table.Columns.Add(nameof(Person.FavoriteNumber), typeof(int));
 
-        // foreach (var person in people)
-        // {
-        //     var row = table.NewRow();
-        //     row[nameof(Person.Id)] = person.Id.ToString();
-        //     row[nameof(Person.Name)] = person.Name;
-        //     row[nameof(Person.BirthDate)] = GetDBValue(person.BirthDate);
-        //     row[nameof(Person.FavoriteMovie)] = person.FavoriteMovie;
-        //     row[nameof(Person.FavoriteNumber)] = GetDBValue(person.FavoriteNumber);
-        //     table.Rows.Add(row);
-        // }
 
-        using (var bulkInsert = new SqlBulkCopy(strConnectionString))
-        {
-            bulkInsert.DestinationTableName = dtInsert.TableName;
-            bulkInsert.WriteToServer(dtInsert);
-        }
-    }
-    #endregion
-
-    #region private DataTable ConvertSheetToDataTable(Sheet sheet)
-    private DataTable ConvertSheetToDataTable(Sheet sheet)
-    {
-        DataTable dt = new DataTable();
-
-        dt.TableName = selectedTable;
-
-        // Add columns
-        for (int i = 0; i < sheet.NumCols; i++)
-        {
-            dt.Columns.Add(sheet.Columns.GetHeading(i), GetColumnType(sheet.Cells[0, i].ValueType));
-        }
-
-        // Add rows
-        for (int i = 0; i < sheet.NumRows; i++)
-        {
-            DataRow row = dt.NewRow();
-
-            for (int j = 0; j < sheet.NumCols; j++)
-            {
-                row[j] = sheet.Cells[i, j].Value;
-            }
-
-            dt.Rows.Add(row);
-        }
-
-        return dt;
     }
     #endregion
 

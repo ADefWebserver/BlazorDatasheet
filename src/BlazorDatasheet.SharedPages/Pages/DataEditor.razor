@@ -1,6 +1,7 @@
 ﻿@page "/dataeditor"
 @using BlazorDatasheet.Core.Interfaces
 @using BlazorDatasheet.Core.Validation
+@using BlazorDatasheet.DataStructures.Geometry
 @using BlazorDatasheet.Formula.Core
 @using BlazorDatasheet.Render
 @using BlazorDatasheet.Core.Data
@@ -488,6 +489,27 @@ else
         foreach (DTODatabaseColumn objDatabaseColumn in paramDatabaseColumns)
         {
             sheet.Columns.SetHeadings(i, i, objDatabaseColumn.ColumnName);
+
+            if (UseValidation)
+            {
+                // Integer Validator
+                if (objDatabaseColumn.ColumnType.Contains("int"))
+                {
+                    sheet.Validators.Add(new ColumnRegion(i), new NumberValidator(false));
+
+                }
+
+                // Length Validator
+                if (objDatabaseColumn.ColumnLength > 0)
+                {
+                    if (objDatabaseColumn.ColumnType.Contains("char"))
+                    {
+                        sheet.Validators.Add(new ColumnRegion(i), new LengthValidator(objDatabaseColumn.ColumnLength, true));
+
+                    }
+                }
+            }
+
             i++;
         }
 
@@ -499,27 +521,6 @@ else
             {
                 sheet.Cells[ii, i].Value = dataRow[i].ToString();
                 sheet.Cells[ii, i].Type = objDatabaseColumn.ColumnType;
-
-                // Integer Validator
-                if (objDatabaseColumn.ColumnType.Contains("int"))
-                {
-                    if (UseValidation)
-                    {
-                        sheet.Validators.Add(ii, i, new NumberValidator(false));
-                    }
-                }
-
-                // Length Validator
-                if (objDatabaseColumn.ColumnLength > 0)
-                {
-                    if (objDatabaseColumn.ColumnType.Contains("char"))
-                    {
-                        if (UseValidation)
-                        {
-                            sheet.Validators.Add(ii, i, new LengthValidator(objDatabaseColumn.ColumnLength, true));
-                        }
-                    }
-                }
 
                 if (objDatabaseColumn.IsPrimaryKey)
                 {
@@ -704,11 +705,15 @@ else
 
         public bool IsValid(CellValue value)
         {
-            if (value.ValueType != CellValueType.Text)
-                return false;
-
-            var str = (string)value.Data!;
-            return str.Length <= _length;
+            try
+            {
+                var str = Convert.ToString(value.Data!);
+                return str.Length <= _length;
+            }
+            catch(Exception ex)
+            {
+                return true;
+            }
         }
     }
     #endregion

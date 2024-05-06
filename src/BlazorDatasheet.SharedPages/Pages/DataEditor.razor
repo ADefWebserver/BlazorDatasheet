@@ -88,10 +88,11 @@ else
     }
 
     #region Datasheet Events
-    private void btnSave()
+    private async Task btnSave()
     {
         if(SavingDisabled)
         {
+            await ShowPrimaryKeyWarningDialog();
             return;
         }
 
@@ -446,7 +447,6 @@ else
                 if (PrimaryKeys.Count == 0)
                 {
                     SavingDisabled = true;
-                    await ShowPrimaryKeyWarningDialog();
                 }
                 else
                 {

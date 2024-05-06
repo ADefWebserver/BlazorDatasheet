@@ -432,6 +432,9 @@ else
                     }
                 }
 
+                // Remove from TableColumns any colums types of unique identifiers
+                TableColumns = TableColumns.Where(x => x.ColumnType != "uniqueidentifier").ToList();
+
                 // Get Table names from TableColumns as comma seperated values
                 string strTableNames = string.Join(",", TableColumns.Select(x => $"[{x.ColumnName}]").ToArray());
 

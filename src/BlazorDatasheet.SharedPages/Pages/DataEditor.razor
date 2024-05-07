@@ -396,6 +396,9 @@ else
                 // Get the primary keys for the table
                 List<string> PrimaryKeys = GetPrimaryKey(connection, selectedTable);
 
+                // Get the computed columns for the table
+                List<string> ComputedColumns = GetComputedColumns(connection, selectedTable);
+
                 // Get a list of the column names
                 TableColumns = new List<DTODatabaseColumn>();
 
@@ -434,6 +437,10 @@ else
 
                 // Remove from TableColumns any colums types of unique identifiers
                 TableColumns = TableColumns.Where(x => x.ColumnType != "uniqueidentifier").ToList();
+
+                // Remove from TableColumns any colums types of computed 
+                // remove colums conatined in the ComputedColumns list
+                TableColumns = TableColumns.Where(x => !ComputedColumns.Contains(x.ColumnName)).ToList();
 
                 // Get Table names from TableColumns as comma seperated values
                 string strTableNames = string.Join(",", TableColumns.Select(x => $"[{x.ColumnName}]").ToArray());
@@ -671,6 +678,38 @@ else
         catch { }
 
         return PrimaryKeys;
+    }
+    #endregion
+
+    #region public List<string> GetComputedColumns(SqlConnection connection, string tableName)
+    public List<string> GetComputedColumns(SqlConnection connection, string tableName)
+    {
+        List<string> ComputedColumns = new List<string>();
+
+        try
+        {
+            string query = $@"
+                    SELECT name AS ColumnName
+                    FROM sys.columns
+                    WHERE object_id = OBJECT_ID('{tableName}') AND is_computed = 1";
+
+            using (SqlCommand command = new SqlCommand(query, connection))
+            {
+                using (SqlDataReader reader = command.ExecuteReader())
+                {
+                    if (reader.Read())
+                    {
+                        if (reader["ColumnName"] != DBNull.Value)
+                        {
+                            ComputedColumns.Add(reader["ColumnName"].ToString());
+                        }
+                    }
+                }
+            }
+        }
+        catch { }
+
+        return ComputedColumns;
     }
     #endregion
 

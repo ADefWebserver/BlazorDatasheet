@@ -58,7 +58,7 @@ else
 }
 
 @code {
-#nullable disable
+    #nullable disable
     private Sheet sheet;
 
     bool isLoading = false;
@@ -70,6 +70,9 @@ else
 
     List<string> tableNames = new List<string> { };
     List<DTODatabaseColumn> TableColumns = new List<DTODatabaseColumn>();
+
+    DataTable OriginalDataTable;
+    DataTable CurrentDataTable;
 
     string DatabaseConnectionString = "";
 
@@ -463,6 +466,9 @@ else
                     SavingDisabled = false;
                 }
 
+                // Save the original data
+                OriginalDataTable = dt.Copy();
+
                 // Load Data into the Datasheet
                 LoadTableHeadersAndData(TableColumns, dt);
             }
@@ -554,28 +560,65 @@ else
     #region private void SaveData()
     private void SaveData()
     {
-        List<string[]> Rows = new List<string[]>();
+        // Initialize a new DataTable
+        CurrentDataTable = new DataTable();
 
+        // Define columns based on TableColumns
+        foreach (var column in TableColumns)
+        {
+            CurrentDataTable.Columns.Add(new DataColumn(column.ColumnName, GetColumnType(column.ColumnType)));
+        }
+
+        // Populate the DataTable with rows from the sheet
         for (int i = 0; i < sheet.NumRows; i++)
         {
-            string[] row = new string[TableColumns.Count];
+            DataRow row = CurrentDataTable.NewRow();
 
             for (int j = 0; j < TableColumns.Count; j++)
             {
-                string CurrentValue = sheet.Cells[i, j].Value?.ToString() ?? "";
-                row[j] = CurrentValue.Replace("\r\n", " ")
-                                     .Replace("\t", " ")
-                                     .Replace("\r", " ")
-                                     .Replace("\n", " ")
-                                     .Trim();
+                string currentValue = sheet.Cells[i, j].Value?.ToString() ?? "";
+                currentValue = currentValue.Replace("\r\n", " ")
+                                           .Replace("\t", " ")
+                                           .Replace("\r", " ")
+                                           .Replace("\n", " ")
+                                           .Trim();
+                row[j] = currentValue;
             }
 
-            Rows.Add(row);
+            CurrentDataTable.Rows.Add(row);
         }
 
-        int RowsCount = Rows.Count;
+        GetChanges();
     }
     #endregion
+
+    public void GetChanges()
+    {
+        // Assuming a DataColumn named "ID" is the primary key for comparison.
+        var originalIds = OriginalDataTable.AsEnumerable().Select(row => row.Field<int>("_Id")).ToHashSet();
+        var currentIds = CurrentDataTable.AsEnumerable().Select(row => row.Field<int>("_Id")).ToHashSet();
+
+        // #1. Find Changed Rows
+        var changedRows = from rowOrg in OriginalDataTable.AsEnumerable()
+                          join rowCur in CurrentDataTable.AsEnumerable()
+                          on rowOrg.Field<int>("ID") equals rowCur.Field<int>("ID")
+                          where !rowOrg.ItemArray.SequenceEqual(rowCur.ItemArray)
+                          select rowCur;
+
+        // #2. Find Added Rows
+        var addedRows = CurrentDataTable.AsEnumerable()
+                        .Where(row => !originalIds.Contains(row.Field<int>("ID")));
+
+        // #3. Find Deleted Rows
+        var deletedRows = OriginalDataTable.AsEnumerable()
+                        .Where(row => !currentIds.Contains(row.Field<int>("ID")));
+
+        // Convert results to DataTable if necessary
+        DataTable changedRowsTable = changedRows.CopyToDataTable();
+        DataTable addedRowsTable = addedRows.CopyToDataTable();
+        DataTable deletedRowsTable = deletedRows.CopyToDataTable();
+
+    }
 
     // Utility
 
@@ -728,20 +771,27 @@ else
     }
     #endregion
 
-    #region public System.Type GetColumnType(CellValueType cellValueType)
-    public System.Type GetColumnType(CellValueType cellValueType)
+    #region public System.Type GetColumnType(string paramType)
+    public System.Type GetColumnType(string paramType)
     {
-        switch (cellValueType)
+        Type ReturnType = typeof(string);
+
+        if(paramType.Contains("int"))
         {
-            case CellValueType.Text:
-                return typeof(string);
-            case CellValueType.Number:
-                return typeof(int);
-            case CellValueType.Date:
-                return typeof(DateTime);
-            default:
-                return typeof(string);
+            return typeof(int);
         }
+
+        if (paramType.Contains("char"))
+        {
+            return typeof(string);
+        }
+
+        if (paramType.Contains("date"))
+        {
+            return typeof(DateTime);
+        }
+
+        return ReturnType;
     }
     #endregion
 

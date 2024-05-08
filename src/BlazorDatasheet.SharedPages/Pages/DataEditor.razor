@@ -90,7 +90,7 @@ else
     #region Datasheet Events
     private async Task btnSave()
     {
-        if(SavingDisabled)
+        if (SavingDisabled)
         {
             await ShowPrimaryKeyWarningDialog();
             return;
@@ -249,7 +249,7 @@ else
 
         <h4>@strStatusMessage</h4>
     </RadzenStack>
-           );
+       );
     }
     #endregion
 
@@ -438,7 +438,7 @@ else
                 // Remove from TableColumns any colums types of unique identifiers
                 TableColumns = TableColumns.Where(x => x.ColumnType != "uniqueidentifier").ToList();
 
-                // Remove from TableColumns any colums types of computed 
+                // Remove from TableColumns any colums types of computed
                 // remove colums conatined in the ComputedColumns list
                 TableColumns = TableColumns.Where(x => !ComputedColumns.Contains(x.ColumnName)).ToList();
 
@@ -461,10 +461,10 @@ else
                 else
                 {
                     SavingDisabled = false;
-                }   
+                }
 
-                // Create Table Headers
-                SetTableHeadersAndData(TableColumns, dt);
+                // Load Data into the Datasheet
+                LoadTableHeadersAndData(TableColumns, dt);
             }
             catch (Exception ex)
             {
@@ -485,8 +485,8 @@ else
     }
     #endregion
 
-    #region private void SetTableHeadersAndData(List<DTODatabaseColumn> paramDatabaseColumns, DataTable paramDataTable)
-    private void SetTableHeadersAndData(List<DTODatabaseColumn> paramDatabaseColumns, DataTable paramDataTable)
+    #region private void LoadTableHeadersAndData(List<DTODatabaseColumn> paramDatabaseColumns, DataTable paramDataTable)
+    private void LoadTableHeadersAndData(List<DTODatabaseColumn> paramDatabaseColumns, DataTable paramDataTable)
     {
         // Create sheet with the number of columns
         sheet = new Sheet(paramDataTable.Rows.Count, paramDatabaseColumns.Count);
@@ -554,11 +554,26 @@ else
     #region private void SaveData()
     private void SaveData()
     {
-        // Detect rows that have changed
-        //var changedRows = sheet....Where(r => r.IsChanged).ToList();
+        List<string[]> Rows = new List<string[]>();
 
+        for (int i = 0; i < sheet.NumRows; i++)
+        {
+            string[] row = new string[TableColumns.Count];
 
+            for (int j = 0; j < TableColumns.Count; j++)
+            {
+                string CurrentValue = sheet.Cells[i, j].Value?.ToString() ?? "";
+                row[j] = CurrentValue.Replace("\r\n", " ")
+                                     .Replace("\t", " ")
+                                     .Replace("\r", " ")
+                                     .Replace("\n", " ")
+                                     .Trim();
+            }
 
+            Rows.Add(row);
+        }
+
+        int RowsCount = Rows.Count;
     }
     #endregion
 
@@ -752,7 +767,7 @@ else
                 var str = Convert.ToString(value.Data!);
                 return str.Length <= _length;
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 return true;
             }

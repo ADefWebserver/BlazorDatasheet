@@ -58,7 +58,7 @@ else
 }
 
 @code {
-    #nullable disable
+#nullable disable
     private Sheet sheet;
 
     bool isLoading = false;
@@ -252,7 +252,7 @@ else
 
         <h4>@strStatusMessage</h4>
     </RadzenStack>
-       );
+           );
     }
     #endregion
 
@@ -466,7 +466,7 @@ else
                     string strPrimaryKeys = string.Join(",", PrimaryKeys.Select(x => $"[{x}]").ToArray());
 
                     // Get the data from the selected table
-                    sql = $"SELECT ROW_NUMBER() OVER (ORDER BY {strPrimaryKeys}) AS _Id, {strTableNames} FROM {selectedTable}";                    
+                    sql = $"SELECT ROW_NUMBER() OVER (ORDER BY {strPrimaryKeys}) AS _Id, {strTableNames} FROM {selectedTable}";
                 }
 
                 SqlDataAdapter adapter = new SqlDataAdapter(sql, connection);
@@ -513,6 +513,9 @@ else
         sheet.BatchUpdates();
         sheet.Commands.PauseHistory();
 
+        // Hide the _Id column
+        sheet.Columns.SetWidth(0, 0);
+
         int i = 0;
         foreach (DTODatabaseColumn objDatabaseColumn in paramDatabaseColumns)
         {
@@ -532,7 +535,6 @@ else
                     if (objDatabaseColumn.ColumnType.Contains("char"))
                     {
                         sheet.Validators.Add(new ColumnRegion(i), new LengthValidator(objDatabaseColumn.ColumnLength, true));
-
                     }
                 }
             }
@@ -551,7 +553,7 @@ else
 
                 if (objDatabaseColumn.IsPrimaryKey)
                 {
-                    sheet.Cells[ii, i].Format = new CellFormat() { IsReadOnly = true };
+                    sheet.Cells[ii, i].Format = new CellFormat() { IsReadOnly = true };                    
                 }
 
                 i++;
@@ -613,24 +615,24 @@ else
         // #1. Find Changed Rows
         var changedRows = from rowOrg in OriginalDataTable.AsEnumerable()
                           join rowCur in CurrentDataTable.AsEnumerable()
-                          on rowOrg.Field<int>("ID") equals rowCur.Field<int>("ID")
+                          on rowOrg.Field<int>("_Id") equals rowCur.Field<int>("_Id")
                           where !rowOrg.ItemArray.SequenceEqual(rowCur.ItemArray)
                           select rowCur;
 
         // #2. Find Added Rows
         var addedRows = CurrentDataTable.AsEnumerable()
-                        .Where(row => !originalIds.Contains(row.Field<int>("ID")));
+                        .Where(row => !originalIds.Contains(row.Field<int>("_Id")));
 
         // #3. Find Deleted Rows
         var deletedRows = OriginalDataTable.AsEnumerable()
-                        .Where(row => !currentIds.Contains(row.Field<int>("ID")));
+                        .Where(row => !currentIds.Contains(row.Field<int>("_Id")));
 
         // Convert results to DataTable if necessary
         DataTable changedRowsTable = changedRows.CopyToDataTable();
         DataTable addedRowsTable = addedRows.CopyToDataTable();
         DataTable deletedRowsTable = deletedRows.CopyToDataTable();
     }
-#endregion
+    #endregion
 
     // Utility
 
@@ -788,7 +790,7 @@ else
     {
         Type ReturnType = typeof(string);
 
-        if(paramType.Contains("int"))
+        if (paramType.Contains("int"))
         {
             return typeof(int);
         }

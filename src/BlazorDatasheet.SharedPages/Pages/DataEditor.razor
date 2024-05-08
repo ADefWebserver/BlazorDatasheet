@@ -448,26 +448,38 @@ else
                 // Get Table names from TableColumns as comma seperated values
                 string strTableNames = string.Join(",", TableColumns.Select(x => $"[{x.ColumnName}]").ToArray());
 
-                // Get the data from the selected table
-                string sql = $"SELECT {strTableNames} FROM {selectedTable}";
+                string sql = "";
+
+                // See if there are any primary keys
+                if (PrimaryKeys.Count == 0)
+                {
+                    SavingDisabled = true;
+
+                    // Get the data from the selected table
+                    sql = $"SELECT 0 AS _Id, {strTableNames} FROM {selectedTable}";
+                }
+                else
+                {
+                    SavingDisabled = false;
+
+                    // Turn PrimaryKeys into a comma seperated string
+                    string strPrimaryKeys = string.Join(",", PrimaryKeys.Select(x => $"[{x}]").ToArray());
+
+                    // Get the data from the selected table
+                    sql = $"SELECT ROW_NUMBER() OVER (ORDER BY {strPrimaryKeys}) AS _Id, {strTableNames} FROM {selectedTable}";                    
+                }
+
                 SqlDataAdapter adapter = new SqlDataAdapter(sql, connection);
                 DataTable dt = new DataTable();
                 adapter.Fill(dt);
 
                 connection.Close();
 
-                // See if there are any primary keys
-                if (PrimaryKeys.Count == 0)
-                {
-                    SavingDisabled = true;
-                }
-                else
-                {
-                    SavingDisabled = false;
-                }
-
                 // Save the original data
                 OriginalDataTable = dt.Copy();
+
+                // Make the first column _Id
+                TableColumns.Insert(0, new DTODatabaseColumn { ColumnName = "_Id", ColumnType = "int", ColumnLength = 0, IsPrimaryKey = true });
 
                 // Load Data into the Datasheet
                 LoadTableHeadersAndData(TableColumns, dt);
@@ -512,7 +524,6 @@ else
                 if (objDatabaseColumn.ColumnType.Contains("int"))
                 {
                     sheet.Validators.Add(new ColumnRegion(i), new NumberValidator(false));
-
                 }
 
                 // Length Validator
@@ -592,6 +603,7 @@ else
     }
     #endregion
 
+    #region public void GetChanges()
     public void GetChanges()
     {
         // Assuming a DataColumn named "ID" is the primary key for comparison.
@@ -617,8 +629,8 @@ else
         DataTable changedRowsTable = changedRows.CopyToDataTable();
         DataTable addedRowsTable = addedRows.CopyToDataTable();
         DataTable deletedRowsTable = deletedRows.CopyToDataTable();
-
     }
+#endregion
 
     // Utility
 

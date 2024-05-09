@@ -252,7 +252,7 @@ else
 
         <h4>@strStatusMessage</h4>
     </RadzenStack>
-           );
+       );
     }
     #endregion
 
@@ -553,7 +553,7 @@ else
 
                 if (objDatabaseColumn.IsPrimaryKey)
                 {
-                    sheet.Cells[ii, i].Format = new CellFormat() { IsReadOnly = true };                    
+                    sheet.Cells[ii, i].Format = new CellFormat() { IsReadOnly = true };
                 }
 
                 i++;
@@ -589,13 +589,21 @@ else
 
             for (int j = 0; j < TableColumns.Count; j++)
             {
-                string currentValue = sheet.Cells[i, j].Value?.ToString() ?? "";
-                currentValue = currentValue.Replace("\r\n", " ")
-                                           .Replace("\t", " ")
-                                           .Replace("\r", " ")
-                                           .Replace("\n", " ")
-                                           .Trim();
-                row[j] = currentValue;
+                try
+                {
+                    string currentValue = sheet.Cells[i, j].Value?.ToString() ?? "";
+
+                    currentValue = currentValue.Replace("\r\n", " ")
+                                               .Replace("\t", " ")
+                                               .Replace("\r", " ")
+                                               .Replace("\n", " ")
+                                               .Trim();
+                    row[j] = currentValue;
+                }
+                catch (Exception ex)
+                {
+                    ErrorMessage = ex.GetBaseException().Message;
+                }
             }
 
             CurrentDataTable.Rows.Add(row);
@@ -613,15 +621,29 @@ else
         var currentIds = CurrentDataTable.AsEnumerable().Select(row => Convert.ToInt64(row.Field<int>("_Id"))).ToHashSet();
 
         // #1. Find Changed Rows
-        var changedRows = from rowOrg in OriginalDataTable.AsEnumerable()
-                          join rowCur in CurrentDataTable.AsEnumerable()
-                          on rowOrg.Field<long>("_Id") equals Convert.ToInt64(rowCur.Field<int>("_Id"))
-                          where !NormalizedRow(rowOrg).SequenceEqual(NormalizedRow(rowCur))
-                          select rowCur;
 
-        IEnumerable<object> NormalizedRow(DataRow row)
+        List<int> ColChangedRows = new List<int>();
+        // Loop through all rows in the original data table
+        foreach (DataRow rowOrg in OriginalDataTable.Rows)
         {
-            return row.ItemArray.Select(x => x is double ? Math.Round((double)x, 2) : x);
+            // Find the corresponding row in the current data table
+            DataRow? rowCur = CurrentDataTable.AsEnumerable()
+                .FirstOrDefault(r => r.Field<int>("_Id") == rowOrg.Field<long>("_Id"));
+
+            // If the row is not found, it has been deleted
+            if (rowCur != null)
+            {
+                // The row has been found
+                // Check if the row has been changed
+                // Loop through each column and compare the values
+                for (int i = 0; i < OriginalDataTable.Columns.Count; i++)
+                {
+                    if (rowOrg[i].ToString() != rowCur[i].ToString())
+                    {
+                        ColChangedRows.Add(Convert.ToInt32(rowCur[0]));
+                    }
+                }
+            }
         }
 
         // #2. Find Added Rows

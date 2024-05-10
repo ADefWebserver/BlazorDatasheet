@@ -705,7 +705,8 @@ else
                     DataRow rowCur = CurrentDataTable.Rows[row];
 
                     // Loop through the columns
-                    for (int i = 0; i < TableColumns.Count; i++)
+                    // Start at 1 to skip the _Id column
+                    for (int i = 1; i < TableColumns.Count; i++)
                     {
                         // Build a list of columns that have changed
 
@@ -723,16 +724,22 @@ else
 
                         // TO DO:
                         // For integers dont wrap in quotes
-                        // For dates dont wrap in quotes
-                        // For strings wrap in quotes
+                        // For strings and dates wrap in quotes
                         // Trim based on column length
-                        colSQLUpdateColumns.Add($"{columnName} = '{columnValue}'");
+
+                        if(columnType.Contains("int"))
+                        {
+                            colSQLUpdateColumns.Add($"{columnName} = {columnValue}");
+                        }
+                        else
+                        {
+                            colSQLUpdateColumns.Add($"{columnName} = LEFT('{columnValue}',{columnLength})");
+                        }
                     }
 
                     if (colSQLUpdateColumns.Count > 0)
                     {
                         UpdateSQLColums = string.Join(",", colSQLUpdateColumns.ToArray());
-
 
                         using (SqlConnection connection = new SqlConnection(DatabaseConnectionString))
                         {
@@ -742,11 +749,14 @@ else
 
                                 string sql = $"UPDATE {selectedTable} SET {UpdateSQLColums} WHERE _Id = {row}";
 
-                                SqlDataAdapter adapter = new SqlDataAdapter(sql, connection);
+                                using (SqlCommand command = new SqlCommand(sql, connection))
+                                {
+                                    command.ExecuteNonQuery();
+                                }
                             }
                             catch (Exception ex)
                             {
-                                colGeneralErrors.Add(ex.GetBaseException().Message);
+                                colGeneralErrors.Add($"Error on Row {row} - {ex.GetBaseException().Message}");
                             }
                             finally
                             {
@@ -865,9 +875,7 @@ else
     #region public List<string> GetPrimaryKey(SqlConnection connection, string tableName)
     public List<string> GetPrimaryKey(SqlConnection connection, string tableName)
     {
-        List<string>
-            PrimaryKeys = new List<string>
-                ();
+        List<string> PrimaryKeys = new List<string>();
 
         try
         {
@@ -901,9 +909,7 @@ else
     #region public List<string> GetComputedColumns(SqlConnection connection, string tableName)
     public List<string> GetComputedColumns(SqlConnection connection, string tableName)
     {
-        List<string>
-            ComputedColumns = new List<string>
-                ();
+        List<string> ComputedColumns = new List<string>();
 
         try
         {

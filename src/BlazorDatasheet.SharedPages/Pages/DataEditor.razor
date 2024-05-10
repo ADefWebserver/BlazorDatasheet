@@ -255,7 +255,7 @@ else
 
         <h4>@strStatusMessage</h4>
     </RadzenStack>
-       );
+           );
     }
     #endregion
 
@@ -288,7 +288,7 @@ else
             </tbody>
         </table>
     </RadzenStack>
-    );
+        );
     }
     #endregion
 
@@ -304,14 +304,23 @@ else
                         <label style="font-weight: bold">Saved</label>
                     </td>
                 </tr>
-                @foreach(var item in colGeneralErrors)
-            {
                 <tr>
                     <td>
-                        <label style="font-weight: bold">@item</label>
+                        <!-- Scrollable container for errors -->
+                        <div style="height: 250px; overflow-y: scroll;">
+                            <table>
+                                @foreach(var item in colGeneralErrors)
+                                {
+                                    <tr>
+                                        <td>
+                                            <label style="font-weight: bold">@item</label>
+                                        </td>
+                                    </tr>
+                                }
+                            </table>
+                        </div>
                     </td>
                 </tr>
-            }
             </tbody>
         </table>
 
@@ -713,7 +722,7 @@ else
                     WhereSQLColums = "";
 
                     // Get the row based on the number
-                    DataRow rowCur = CurrentDataTable.Rows[row];
+                    DataRow rowCur = CurrentDataTable.Rows[(row - 1)];
 
                     // Loop through the columns
                     // Start at 1 to skip the _Id column

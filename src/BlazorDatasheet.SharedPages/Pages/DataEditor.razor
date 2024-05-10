@@ -14,7 +14,7 @@
 @using Radzen.Blazor.Rendering
 @using System.Text;
 @using System.Data
-@inject DialogService DialogService
+@inject DialogService dialogService
 
 <PageTitle>Data Editor</PageTitle>
 
@@ -67,6 +67,8 @@ else
     string ErrorMessage = "";
     string selectedTable = "";
     string strConnectionString = "";
+
+    List<string> colGeneralErrors = new List<string>();
 
     List<string> tableNames = new List<string> { };
     List<DTODatabaseColumn> TableColumns = new List<DTODatabaseColumn>();
@@ -178,7 +180,7 @@ else
     #region async Task ShowInlineDialog()
     async Task ShowInlineDialog()
     {
-        var result = await DialogService.OpenAsync("Database Connection", ds =>
+        var result = await dialogService.OpenAsync("Database Connection", ds =>
     @<RadzenStack Gap="1.5rem">
         <table class="form-group" cellpadding="4" cellspacing="4">
             <tbody>
@@ -252,14 +254,14 @@ else
 
         <h4>@strStatusMessage</h4>
     </RadzenStack>
-       );
+           );
     }
     #endregion
 
     #region async Task ShowPrimaryKeyWarningDialog()
     async Task ShowPrimaryKeyWarningDialog()
     {
-        var result = await DialogService.OpenAsync("Primary Key Warning", ds =>
+        var result = await dialogService.OpenAsync("Primary Key Warning", ds =>
     @<RadzenStack Gap="1.5rem">
         <table class="form-group" cellpadding="4" cellspacing="4">
             <tbody>
@@ -276,6 +278,47 @@ else
                 <tr>
                     <td>
                         <button type="button" label="Set Database Connection"
+                                class="btn btn-success"
+                                @onclick=@(() => ds.Close())>
+                            Ok
+                        </button>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </RadzenStack>
+        );
+    }
+    #endregion
+
+    #region async Task ShowStatusDialog()
+    async Task ShowStatusDialog()
+    {
+        var result = await dialogService.OpenAsync("Save Status", ds =>
+    @<RadzenStack Gap="1.5rem">
+        <table class="form-group" cellpadding="4" cellspacing="4">
+            <tbody>
+                <tr>
+                    <td>
+                        <label style="font-weight: bold">Saved</label>
+                    </td>
+                </tr>
+                @foreach(var item in colGeneralErrors)
+            {
+                <tr>
+                    <td>
+                        <label style="font-weight: bold">@item</label>
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+
+        <table class="form-group" cellpadding="4" cellspacing="4">
+            <tbody>
+                <tr>
+                    <td>
+                        <button type="button" label="Close"
                                 class="btn btn-success"
                                 @onclick=@(() => ds.Close())>
                             Ok
@@ -573,6 +616,8 @@ else
     #region private void SaveData()
     private void SaveData()
     {
+        colGeneralErrors = new List<string>();
+
         // Initialize a new DataTable
         CurrentDataTable = new DataTable();
 
@@ -602,7 +647,7 @@ else
                 }
                 catch (Exception ex)
                 {
-                    ErrorMessage = ex.GetBaseException().Message;
+                    colGeneralErrors.Add(ex.GetBaseException().Message);
                 }
             }
 
@@ -614,45 +659,121 @@ else
     #endregion
 
     #region public void GetChanges()
-    public void GetChanges()
+    public async void GetChanges()
     {
-        // Assuming a DataColumn named "ID" is the primary key for comparison.
-        var originalIds = OriginalDataTable.AsEnumerable().Select(row => row.Field<long>("_Id")).ToHashSet();
-        var currentIds = CurrentDataTable.AsEnumerable().Select(row => Convert.ToInt64(row.Field<int>("_Id"))).ToHashSet();
-
-        // #1. Find Changed Rows
-
-        List<int> ColChangedRows = new List<int>();
-        // Loop through all rows in the original data table
-        foreach (DataRow rowOrg in OriginalDataTable.Rows)
+        try
         {
-            // Find the corresponding row in the current data table
-            DataRow? rowCur = CurrentDataTable.AsEnumerable()
-                .FirstOrDefault(r => r.Field<int>("_Id") == rowOrg.Field<long>("_Id"));
+            // Assuming a DataColumn named "ID" is the primary key for comparison.
+            var originalIds = OriginalDataTable.AsEnumerable().Select(row => row.Field<long>("_Id")).ToHashSet();
+            var currentIds = CurrentDataTable.AsEnumerable().Select(row => Convert.ToInt64(row.Field<int>("_Id"))).ToHashSet();
 
-            // If the row is not found, it has been deleted
-            if (rowCur != null)
+            // #1. Find Changed Rows
+
+            List<int> ColChangedRows = new List<int>();
+            // Loop through all rows in the original data table
+            foreach (DataRow rowOrg in OriginalDataTable.Rows)
             {
-                // The row has been found
-                // Check if the row has been changed
-                // Loop through each column and compare the values
-                for (int i = 0; i < OriginalDataTable.Columns.Count; i++)
+                // Find the corresponding row in the current data table
+                DataRow? rowCur = CurrentDataTable.AsEnumerable()
+                    .FirstOrDefault(r => r.Field<int>("_Id") == rowOrg.Field<long>("_Id"));
+
+                // If the row is not found, it has been deleted
+                if (rowCur != null)
                 {
-                    if (rowOrg[i].ToString() != rowCur[i].ToString())
+                    // The row has been found
+                    // Check if the row has been changed
+                    // Loop through each column and compare the values
+                    for (int i = 0; i < OriginalDataTable.Columns.Count; i++)
                     {
-                        ColChangedRows.Add(Convert.ToInt32(rowCur[0]));
+                        if (rowOrg[i].ToString() != rowCur[i].ToString())
+                        {
+                            ColChangedRows.Add(Convert.ToInt32(rowCur[0]));
+                        }
                     }
                 }
             }
+
+            // If there are changed rows
+            List<string> colSQLUpdateColumns = new List<string>();
+            string UpdateSQLColums = "";
+            if (ColChangedRows.Count() > 0)
+            {
+                // Loop through the changed rows
+                foreach (int row in ColChangedRows)
+                {
+                    // Get the row based on the number
+                    DataRow rowCur = CurrentDataTable.Rows[row];
+
+                    // Loop through the columns
+                    for (int i = 0; i < TableColumns.Count; i++)
+                    {
+                        // Build a list of columns that have changed
+
+                        // Get the column name
+                        string columnName = TableColumns[i].ColumnName;
+
+                        // Get the column type
+                        string columnType = TableColumns[i].ColumnType;
+
+                        // Get the column length
+                        int columnLength = TableColumns[i].ColumnLength;
+
+                        // Get the column value
+                        string columnValue = rowCur[i].ToString();
+
+                        // TO DO:
+                        // For integers dont wrap in quotes
+                        // For dates dont wrap in quotes
+                        // For strings wrap in quotes
+                        // Trim based on column length
+                        colSQLUpdateColumns.Add($"{columnName} = '{columnValue}'");
+                    }
+
+                    if (colSQLUpdateColumns.Count > 0)
+                    {
+                        UpdateSQLColums = string.Join(",", colSQLUpdateColumns.ToArray());
+
+
+                        using (SqlConnection connection = new SqlConnection(DatabaseConnectionString))
+                        {
+                            try
+                            {
+                                connection.Open();
+
+                                string sql = $"UPDATE {selectedTable} SET {UpdateSQLColums} WHERE _Id = {row}";
+
+                                SqlDataAdapter adapter = new SqlDataAdapter(sql, connection);
+                            }
+                            catch (Exception ex)
+                            {
+                                colGeneralErrors.Add(ex.GetBaseException().Message);
+                            }
+                            finally
+                            {
+                                if (connection.State == ConnectionState.Open)
+                                {
+                                    connection.Close();
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // #2. Find Added Rows
+                var addedRows = CurrentDataTable.AsEnumerable()
+                                .Where(row => !originalIds.Contains(Convert.ToInt64(row.Field<int>("_Id"))));
+
+                // #3. Find Deleted Rows
+                var deletedRows = OriginalDataTable.AsEnumerable()
+                                .Where(row => !currentIds.Contains(row.Field<long>("_Id")));
+            }
+        }
+        catch (Exception ex)
+        {
+            colGeneralErrors.Add(ex.GetBaseException().Message);
         }
 
-        // #2. Find Added Rows
-        var addedRows = CurrentDataTable.AsEnumerable()
-                        .Where(row => !originalIds.Contains(Convert.ToInt64(row.Field<int>("_Id"))));
-
-        // #3. Find Deleted Rows
-        var deletedRows = OriginalDataTable.AsEnumerable()
-                        .Where(row => !currentIds.Contains(row.Field<long>("_Id")));
+        await ShowStatusDialog();
     }
     #endregion
 
@@ -744,16 +865,18 @@ else
     #region public List<string> GetPrimaryKey(SqlConnection connection, string tableName)
     public List<string> GetPrimaryKey(SqlConnection connection, string tableName)
     {
-        List<string> PrimaryKeys = new List<string>();
+        List<string>
+            PrimaryKeys = new List<string>
+                ();
 
         try
         {
             string query = $@"
-                    SELECT c.Name
-                    FROM sys.index_columns ic
-                    INNER JOIN sys.columns c ON ic.object_id = c.object_id AND ic.column_id = c.column_id
-                    INNER JOIN sys.indexes i ON i.object_id = ic.object_id AND i.index_id = ic.index_id
-                    WHERE i.is_primary_key = 1 AND ic.object_id = OBJECT_ID('{tableName}')";
+                SELECT c.Name
+                FROM sys.index_columns ic
+                INNER JOIN sys.columns c ON ic.object_id = c.object_id AND ic.column_id = c.column_id
+                INNER JOIN sys.indexes i ON i.object_id = ic.object_id AND i.index_id = ic.index_id
+                WHERE i.is_primary_key = 1 AND ic.object_id = OBJECT_ID('{tableName}')";
 
             using (SqlCommand command = new SqlCommand(query, connection))
             {
@@ -778,14 +901,16 @@ else
     #region public List<string> GetComputedColumns(SqlConnection connection, string tableName)
     public List<string> GetComputedColumns(SqlConnection connection, string tableName)
     {
-        List<string> ComputedColumns = new List<string>();
+        List<string>
+            ComputedColumns = new List<string>
+                ();
 
         try
         {
             string query = $@"
-                    SELECT name AS ColumnName
-                    FROM sys.columns
-                    WHERE object_id = OBJECT_ID('{tableName}') AND is_computed = 1";
+                                SELECT name AS ColumnName
+                                FROM sys.columns
+                                WHERE object_id = OBJECT_ID('{tableName}') AND is_computed = 1";
 
             using (SqlCommand command = new SqlCommand(query, connection))
             {

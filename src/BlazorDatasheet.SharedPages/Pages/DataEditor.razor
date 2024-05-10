@@ -72,6 +72,7 @@ else
 
     List<string> tableNames = new List<string> { };
     List<DTODatabaseColumn> TableColumns = new List<DTODatabaseColumn>();
+    List<string> PrimaryKeys = new List<string>();
 
     DataTable OriginalDataTable;
     DataTable CurrentDataTable;
@@ -254,7 +255,7 @@ else
 
         <h4>@strStatusMessage</h4>
     </RadzenStack>
-           );
+       );
     }
     #endregion
 
@@ -287,7 +288,7 @@ else
             </tbody>
         </table>
     </RadzenStack>
-        );
+    );
     }
     #endregion
 
@@ -390,7 +391,7 @@ else
                 // Ensure that the table is not a system table
                 if (row[3].ToString() == "BASE TABLE")
                 {
-                    string tablename = $"{(string)row[1]}.{(string)row[2]}";
+                    string tablename = $"[{(string)row[1]}].[{(string)row[2]}]";
                     tableNames.Add(tablename);
                 }
             }
@@ -440,7 +441,7 @@ else
             try
             {
                 // Get the primary keys for the table
-                List<string> PrimaryKeys = GetPrimaryKey(connection, selectedTable);
+                PrimaryKeys = GetPrimaryKey(connection, selectedTable);
 
                 // Get the computed columns for the table
                 List<string> ComputedColumns = GetComputedColumns(connection, selectedTable);
@@ -452,7 +453,7 @@ else
 
                 foreach (DataRow row in Columns.Rows)
                 {
-                    if ($"{row["TABLE_SCHEMA"].ToString()}.{row["TABLE_NAME"].ToString()}" == selectedTable)
+                    if ($"[{row["TABLE_SCHEMA"].ToString()}].[{row["TABLE_NAME"].ToString()}]" == selectedTable)
                     {
                         DTODatabaseColumn objTableColumns = new DTODatabaseColumn();
 
@@ -695,12 +696,22 @@ else
 
             // If there are changed rows
             List<string> colSQLUpdateColumns = new List<string>();
+            List<string> colSQLWhereColumns = new List<string>();
+
             string UpdateSQLColums = "";
+            string WhereSQLColums = "";
+
             if (ColChangedRows.Count() > 0)
             {
                 // Loop through the changed rows
                 foreach (int row in ColChangedRows)
                 {
+                    colSQLUpdateColumns = new List<string>();
+                    colSQLWhereColumns = new List<string>();
+
+                    UpdateSQLColums = "";
+                    WhereSQLColums = "";
+
                     // Get the row based on the number
                     DataRow rowCur = CurrentDataTable.Rows[row];
 
@@ -727,19 +738,41 @@ else
                         // For strings and dates wrap in quotes
                         // Trim based on column length
 
-                        if(columnType.Contains("int"))
+                        if (PrimaryKeys.Contains(columnName))
                         {
-                            colSQLUpdateColumns.Add($"{columnName} = {columnValue}");
+                            // This is a primary key
+                            // Add to the Where clause list
+                            //colSQLWhereColumns
+
+                            if (columnType.Contains("int"))
+                            {
+                                colSQLWhereColumns.Add($"{columnName} = {columnValue}");
+                            }
+                            else
+                            {
+                                colSQLWhereColumns.Add($"{columnName} = '{columnValue}'");
+                            }
                         }
                         else
                         {
-                            colSQLUpdateColumns.Add($"{columnName} = LEFT('{columnValue}',{columnLength})");
+                            // This is not a primary key
+                            // Add to the list of columns to update
+
+                            if (columnType.Contains("int"))
+                            {
+                                colSQLUpdateColumns.Add($"{columnName} = {columnValue}");
+                            }
+                            else
+                            {
+                                colSQLUpdateColumns.Add($"{columnName} = LEFT('{columnValue}',{columnLength})");
+                            }
                         }
                     }
 
                     if (colSQLUpdateColumns.Count > 0)
                     {
                         UpdateSQLColums = string.Join(",", colSQLUpdateColumns.ToArray());
+                        WhereSQLColums = string.Join(" AND ", colSQLWhereColumns.ToArray());
 
                         using (SqlConnection connection = new SqlConnection(DatabaseConnectionString))
                         {
@@ -747,7 +780,7 @@ else
                             {
                                 connection.Open();
 
-                                string sql = $"UPDATE {selectedTable} SET {UpdateSQLColums} WHERE _Id = {row}";
+                                string sql = $"UPDATE {selectedTable} SET {UpdateSQLColums} WHERE {WhereSQLColums}";
 
                                 using (SqlCommand command = new SqlCommand(sql, connection))
                                 {

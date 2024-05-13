@@ -932,7 +932,7 @@ else
             {
                 using (SqlDataReader reader = command.ExecuteReader())
                 {
-                    if (reader.Read())
+                    while (reader.Read())
                     {
                         if (reader["Name"] != DBNull.Value)
                         {

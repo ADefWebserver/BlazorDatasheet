@@ -1,4 +1,5 @@
 ﻿@page "/dataeditor"
+@using BlazorDatasheet.Core.Events
 @using BlazorDatasheet.Core.Interfaces
 @using BlazorDatasheet.Core.Validation
 @using BlazorDatasheet.DataStructures.Geometry
@@ -58,7 +59,7 @@ else
 }
 
 @code {
-#nullable disable
+    #nullable disable
     private Sheet sheet;
 
     bool isLoading = false;
@@ -79,18 +80,22 @@ else
 
     string DatabaseConnectionString = "";
 
-    protected override void OnInitialized()
-    {
-        sheet = new Sheet(numRows: 100000, numCols: 20000);
-    }
-
     protected override async Task OnInitializedAsync()
     {
+        sheet = new Sheet(numRows: 100000, numCols: 20000);
+
+        await base.OnInitializedAsync();
+
         // Wait 1 second before loading the table data
         // to join the UI thread
         await Task.Delay(1000);
 
         await ShowInlineDialog();
+    }
+
+    private void CellChaged(object sender, CellDataChangedEventArgs args)
+    {
+        SavingDisabled = true;
     }
 
     #region Datasheet Events
@@ -614,6 +619,8 @@ else
 
             ii++;
         }
+
+        sheet.Cells.CellsChanged += CellChaged;
 
         // Turn on history
         sheet.EndBatchUpdates();

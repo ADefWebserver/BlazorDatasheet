@@ -114,7 +114,7 @@ public class Sheet
         Selection = new Selection(this);
         Editor = new Editor(this);
         Validators = new ValidationManager(this);
-        Rows = new RowInfoStore(25, this);
+        Rows = new RowInfoStore(24, this);
         Columns = new ColumnInfoStore(105, this);
         FormulaEngine = new FormulaEngine.FormulaEngine(this);
         ConditionalFormats = new ConditionalFormatManager(this, Cells);
@@ -306,8 +306,10 @@ public class Sheet
         _isBatchingChanges = true;
     }
 
-    public void SortRange(IRegion region, List<ColumnSortOptions>? sortOptions = null)
+    public void SortRange(IRegion? region, List<ColumnSortOptions>? sortOptions = null)
     {
+        if (region == null)
+            return;
         var beforeArgs = new BeforeRangeSortEventArgs(region, sortOptions);
         BeforeRangeSort?.Invoke(this, beforeArgs);
         var cmd = new SortRangeCommand(region, sortOptions);

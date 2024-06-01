@@ -1,18 +1,15 @@
-@using System.Text.Encodings.Web
+@using BlazorDatasheet.Core.Commands
+@using BlazorDatasheet.Core.Data
 @using Microsoft.JSInterop;
 @inject IJSRuntime JS
 @inject IWindowEventService _windowEventService;
 @using BlazorDatasheet.Render;
 @implements IDisposable;
-@using Microsoft.AspNetCore.Components.Web.Virtualization;
-@using System.Collections.Immutable
-@using System.Reflection
-@using System.Text
 @using BlazorDatasheet.DataStructures.Geometry
-@using BlazorDatasheet.DataStructures.Util
 @using BlazorDatasheet.Services
 @using BlazorDatasheet.Util
-@using Microsoft.Extensions.Primitives
+@using BlazorDatasheet.Menu
+@inherits SheetComponentBase
 
 
 <div
@@ -23,8 +20,14 @@
     @onmouseover="() => IsMouseInsideSheet = true"
     @onmouseout="() => IsMouseInsideSheet = false">
 
-    @if (Sheet != null)
-    {
+    <!-- Register Menus -->
+    <SelectionMenu/>
+
+    <SheetMenuTarget
+        MenuId="SelectionMenu"
+        MenuData="Sheet"
+        Trigger="@MenuTrigger.OnContextMenu"
+        Placement="@MenuPlacement.BottomRight">
         <div>
             <!-- Column headers -->
             <div style="display: flex; flex-direction: column; justify-content: start;">
@@ -50,7 +53,18 @@
                             NVisibleCols="_visualSheet.Viewport.VisibleRegion.Width"
                             VisibleColStart="_visualSheet.Viewport.VisibleRegion.Left"
                             CellLayoutProvider="_cellLayoutProvider"
-                            Sheet="Sheet"/>
+                            Sheet="Sheet">
+                            <HeadingRenderer>
+                                @if (ColumnHeaderTemplate != null)
+                                {
+                                    @ColumnHeaderTemplate(context)
+                                }
+                                else
+                                {
+                                    @context.Heading?.ToString()
+                                }
+                            </HeadingRenderer>
+                        </ColumnHeadingsRenderer>
 
                     </div>
                 }
@@ -111,7 +125,7 @@
                                             <ItemTemplate>
                                                 <DynamicComponent
                                                     Type="@GetCellRendererType(cell.CellType)"
-                                                    Parameters="@getCellRendererParameters(Sheet, cell)">
+                                                    Parameters="@GetCellRendererParameters(Sheet, cell)">
                                                 </DynamicComponent>
                                             </ItemTemplate>
                                         </CellRenderer>
@@ -152,7 +166,7 @@
                                                 <ItemTemplate>
                                                     <DynamicComponent
                                                         Type="@GetCellRendererType(cell.CellType)"
-                                                        Parameters="@getCellRendererParameters(Sheet, cell)">
+                                                        Parameters="@GetCellRendererParameters(Sheet, cell)">
                                                     </DynamicComponent>
                                                 </ItemTemplate>
                                             </CellRenderer>
@@ -176,7 +190,8 @@
                 <div id="filler-bottom" @ref="_fillerBottom" style="min-height: @(_visualSheet.Viewport?.DistanceBottom)px; min-width:@(1)px;"></div>
             </div>
         </div>
-    }
+
+    </SheetMenuTarget>
 
     <!-- entire size of sheet to force scrollbars. Includes width of row headers/columns-->
     <div id="sheet_whole"

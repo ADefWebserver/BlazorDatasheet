@@ -51,14 +51,17 @@ else
 {
     <div style="overflow: scroll; width: 800px; height: 400px;">
 
-        <Datasheet ShowColHeadings="true"
-                   ShowRowHeadings="true"
-                   Sheet="sheet" />
+        <Datasheet @ref="_datasheet"
+            ShowColHeadings="true"
+            ShowRowHeadings="true"
+            Sheet="sheet" />
     </div>
 }
 
 @code {
     #nullable disable
+
+    private Datasheet _datasheet;
     private Sheet sheet;
 
     bool isLoading = false;
@@ -91,6 +94,7 @@ else
 
         await ShowInlineDialog();
     }
+
 
     private void CellChaged(object sender, CellDataChangedEventArgs args)
     {
@@ -625,6 +629,13 @@ else
         // Turn on history
         sheet.EndBatchUpdates();
         sheet.Commands.ResumeHistory();
+
+        // disable default sort
+        sheet.BeforeRangeSort += (sender, args) =>
+        {
+            args.Cancel = true;
+            var SortOptions = args.SortOptions;
+        };
     }
     #endregion
 

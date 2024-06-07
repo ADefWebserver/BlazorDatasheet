@@ -90,7 +90,7 @@ public class ColumnInfoStore
         };
 
         ColFormats.ShiftLeft(start, (end - start) + 1);
-        ColumnRemoved?.Invoke(this, new ColumnRemovedEventArgs(start, (start - end) + 1));
+        ColumnRemoved?.Invoke(this, new ColumnRemovedEventArgs(start, (end - start) + 1));
         _sheet.MarkDirty(new ColumnRegion(start, _sheet.NumCols));
         return restoreData;
     }
@@ -261,8 +261,7 @@ public class ColumnInfoStore
     /// <param name="colStart"></param>
     public void SetWidth(int column, double width)
     {
-        var cmd = new SetColumnWidthCommand(column, column, width);
-        _sheet.Commands.ExecuteCommand(cmd);
+        SetWidth(column, column, width);
     }
 
     /// <summary>

@@ -2,42 +2,50 @@
 @inject IMenuService MenuService
 @inherits SheetComponentBase
 
-<div class="sheet-menu-item" @onmouseup="HandleMouseUp" @onmouseover="HandleMouseOver">
+<div class="sheet-menu-item"
+     @onmouseup="HandleMouseUp"
+     @onmouseover="HandleMouseOver">
     @ChildContent
 </div>
 
 <style>
     .sheet-menu-item {
         padding: 2px 6px;
-        border-radius: 4px;
+        border-radius: 3px;
         cursor: pointer;
     }
 
     .sheet-menu-item:hover {
-        background-color: #ddd;
+        background-color: var(--sheet-menu-hover-color);
     }
 </style>
 
 @code {
 
-    [Parameter] public RenderFragment ChildContent { get; set; } = default!;
+    [Parameter]
+    public RenderFragment ChildContent { get; set; } = default!;
 
-    [Parameter] public EventCallback<MouseEventArgs> OnClick { get; set; }
+    [Parameter]
+    public EventCallback<MouseEventArgs> OnClick { get; set; }
 
-    [CascadingParameter] public string MenuId { get; set; } = null!;
+    [CascadingParameter]
+    public string MenuId { get; set; } = null!;
 
-    [Parameter] public bool HasSubMenu { get; set; } = false;
+    [Parameter]
+    public string? SubmenuId { get; set; } = null;
 
     private async Task HandleMouseUp(MouseEventArgs args)
     {
         if (OnClick.HasDelegate)
             await OnClick.InvokeAsync(args);
-        if (!HasSubMenu)
+        if (SubmenuId == null)
             await MenuService.CloseMenu(this.MenuId, closeParent: true);
     }
 
     private async Task HandleMouseOver(MouseEventArgs args)
     {
+        if (SubmenuId != null && MenuService.IsMenuOpen(SubmenuId))
+            return;
         await MenuService.CloseSubMenus(this.MenuId);
     }
 

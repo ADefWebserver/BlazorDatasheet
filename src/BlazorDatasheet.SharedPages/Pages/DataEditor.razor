@@ -52,9 +52,9 @@ else
     <div style="overflow: scroll; width: 800px; height: 400px;">
 
         <Datasheet @ref="_datasheet"
-            ShowColHeadings="true"
-            ShowRowHeadings="true"
-            Sheet="sheet" />
+                   ShowColHeadings="true"
+                   ShowRowHeadings="true"
+                   Sheet="sheet" />
     </div>
 }
 
@@ -76,6 +76,7 @@ else
     List<string> tableNames = new List<string> { };
     List<DTODatabaseColumn> TableColumns = new List<DTODatabaseColumn>();
     List<string> PrimaryKeys = new List<string>();
+    List<int> ColChangedRows = new List<int>();
 
     DataTable OriginalDataTable;
     DataTable CurrentDataTable;
@@ -98,7 +99,11 @@ else
 
     private void CellChaged(object sender, CellDataChangedEventArgs args)
     {
-        SavingDisabled = true;
+        // Only add the row if one cell is changed
+        if ((args.Positions.Count() > 0) && (args.Positions.Count() < 2))
+        {
+            ColChangedRows.Add(Convert.ToInt32(args.Positions.FirstOrDefault().row));
+        }
     }
 
     #region Datasheet Events
@@ -263,7 +268,7 @@ else
 
         <h4>@strStatusMessage</h4>
     </RadzenStack>
-           );
+       );
     }
     #endregion
 
@@ -296,7 +301,7 @@ else
             </tbody>
         </table>
     </RadzenStack>
-        );
+    );
     }
     #endregion
 
@@ -318,13 +323,13 @@ else
                         <div style="height: 250px; overflow-y: scroll;">
                             <table>
                                 @foreach(var item in colGeneralErrors)
-                                {
-                                    <tr>
-                                        <td>
-                                            <label style="font-weight: bold">@item</label>
-                                        </td>
-                                    </tr>
-                                }
+                            {
+                                <tr>
+                                    <td>
+                                        <label style="font-weight: bold">@item</label>
+                                    </td>
+                                </tr>
+                            }
                             </table>
                         </div>
                     </td>
@@ -458,6 +463,9 @@ else
 
             try
             {
+                // Clear the list of changed rows
+                ColChangedRows = new List<int>();
+
                 // Get the primary keys for the table
                 PrimaryKeys = GetPrimaryKey(connection, selectedTable);
 
@@ -644,6 +652,8 @@ else
     #region private void SaveData()
     private void SaveData()
     {
+        // # Get the current data in the sheet
+
         colGeneralErrors = new List<string>();
 
         // Initialize a new DataTable
@@ -695,41 +705,16 @@ else
             var originalIds = OriginalDataTable.AsEnumerable().Select(row => row.Field<long>("_Id")).ToHashSet();
             var currentIds = CurrentDataTable.AsEnumerable().Select(row => Convert.ToInt64(row.Field<int>("_Id"))).ToHashSet();
 
-            // #1. Find Changed Rows
-
-            List<int> ColChangedRows = new List<int>();
-            // Loop through all rows in the original data table
-            foreach (DataRow rowOrg in OriginalDataTable.Rows)
-            {
-                // Find the corresponding row in the current data table
-                DataRow? rowCur = CurrentDataTable.AsEnumerable()
-                    .FirstOrDefault(r => r.Field<int>("_Id") == rowOrg.Field<long>("_Id"));
-
-                // If the row is not found, it has been deleted
-                if (rowCur != null)
-                {
-                    // The row has been found
-                    // Check if the row has been changed
-                    // Loop through each column and compare the values
-                    for (int i = 0; i < OriginalDataTable.Columns.Count; i++)
-                    {
-                        if (rowOrg[i].ToString() != rowCur[i].ToString())
-                        {
-                            ColChangedRows.Add(Convert.ToInt32(rowCur[0]));
-                        }
-                    }
-                }
-            }
-
+            // #1. Changed Rows
             // If there are changed rows
-            List<string> colSQLUpdateColumns = new List<string>();
-            List<string> colSQLWhereColumns = new List<string>();
-
-            string UpdateSQLColums = "";
-            string WhereSQLColums = "";
-
             if (ColChangedRows.Count() > 0)
             {
+                List<string> colSQLUpdateColumns = new List<string>();
+                List<string> colSQLWhereColumns = new List<string>();
+
+                string UpdateSQLColums = "";
+                string WhereSQLColums = "";
+
                 // Loop through the changed rows
                 foreach (int row in ColChangedRows)
                 {
@@ -740,7 +725,7 @@ else
                     WhereSQLColums = "";
 
                     // Get the row based on the number
-                    DataRow rowCur = CurrentDataTable.Rows[(row - 1)];
+                    DataRow rowCur = CurrentDataTable.Rows[(row)];
 
                     // Loop through the columns
                     // Start at 1 to skip the _Id column
@@ -758,7 +743,15 @@ else
                         int columnLength = TableColumns[i].ColumnLength;
 
                         // Get the column value
-                        string columnValue = rowCur[i].ToString();
+                        string columnValue = "";
+
+                        if (rowCur[i] != DBNull.Value && rowCur[i] != null)
+                        {
+                            columnValue = Convert.ToString(rowCur[i]);
+
+                            // Replace any single quotes with double single quotes
+                            columnValue = columnValue.Replace("'", "''");
+                        }
 
                         // TO DO:
                         // For integers dont wrap in quotes
@@ -773,11 +766,11 @@ else
 
                             if (columnType.Contains("int"))
                             {
-                                colSQLWhereColumns.Add($"{columnName} = {columnValue}");
+                                colSQLWhereColumns.Add($"[{columnName}] = {columnValue}");
                             }
                             else
                             {
-                                colSQLWhereColumns.Add($"{columnName} = '{columnValue}'");
+                                colSQLWhereColumns.Add($"[{columnName}] = '{columnValue}'");
                             }
                         }
                         else
@@ -787,11 +780,20 @@ else
 
                             if (columnType.Contains("int"))
                             {
-                                colSQLUpdateColumns.Add($"{columnName} = {columnValue}");
+                                colSQLUpdateColumns.Add($"[{columnName}] = {columnValue}");
                             }
                             else
                             {
-                                colSQLUpdateColumns.Add($"{columnName} = LEFT('{columnValue}',{columnLength})");
+                                // Trim the column value based on the column length
+                                if (columnLength > 0)
+                                {
+                                    colSQLUpdateColumns.Add($"[{columnName}] = LEFT('{columnValue}',{columnLength})");
+                                }
+                                else
+                                {
+                                    // Do not add the LEFT function
+                                    colSQLUpdateColumns.Add($"[{columnName}] = '{columnValue}'");
+                                }
                             }
                         }
                     }

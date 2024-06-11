@@ -268,7 +268,7 @@ else
 
         <h4>@strStatusMessage</h4>
     </RadzenStack>
-           );
+       );
     }
     #endregion
 
@@ -301,7 +301,7 @@ else
             </tbody>
         </table>
     </RadzenStack>
-        );
+    );
     }
     #endregion
 
@@ -314,7 +314,7 @@ else
             <tbody>
                 <tr>
                     <td>
-                    @if(colGeneralErrors.Count == 0)
+                        @if(colGeneralErrors.Count == 0)
                     {
                         <label style="font-weight: bold">Saved</label>
                     }
@@ -719,9 +719,11 @@ else
             if (ColChangedRows.Count() > 0)
             {
                 List<string> colSQLUpdateColumns = new List<string>();
+                List<string> ColUpdateSQLValues = new List<string>();
                 List<string> colSQLWhereColumns = new List<string>();
 
                 string UpdateSQLColums = "";
+                string UpdateSQLValues = "";
                 string WhereSQLColums = "";
 
                 // Loop through the changed rows
@@ -737,9 +739,8 @@ else
                     DataRow rowCur = CurrentDataTable.Rows[(row)];
 
                     // Don't try to update if the _Id column = 0
-                    if (Convert.ToInt32(rowCur[0]) > 0)
+                    if (rowCur[0] != DBNull.Value)
                     {
-
                         // Loop through the columns
                         // Start at 1 to skip the _Id column
                         for (int i = 1; i < TableColumns.Count; i++)
@@ -847,21 +848,17 @@ else
 
                 // ** Start inserts and deletes
 
-                var originalIds = OriginalDataTable.AsEnumerable().Select(row => row.Field<long>("_Id")).ToHashSet();
-                var currentIds = CurrentDataTable.AsEnumerable().Select(row => Convert.ToInt64(row.Field<int>("_Id"))).ToHashSet();
-
                 // #2. Find Added Rows
-                var addedRows = CurrentDataTable.AsEnumerable()
-                                .Where(row => !originalIds.Contains(Convert.ToInt64(row.Field<int>("_Id"))));
+                var addedRows = CurrentDataTable.AsEnumerable().Where(row => row.Field<object>("_Id") == null).ToList();
 
                 // Loop through the added rows
-                foreach (var row in addedRows)
+                foreach (var rowCur in addedRows)
                 {
                     colSQLUpdateColumns = new List<string>();
-                    colSQLWhereColumns = new List<string>();
+                    ColUpdateSQLValues = new List<string>();
 
                     UpdateSQLColums = "";
-                    WhereSQLColums = "";
+                    UpdateSQLValues = "";
 
                     // Loop through the columns
                     // Start at 1 to skip the _Id column
@@ -878,57 +875,41 @@ else
                         // Get the column length
                         int columnLength = TableColumns[i].ColumnLength;
 
+                        // Add the column to the list of columns to update
+                        colSQLUpdateColumns.Add($"[{columnName}]");
+
                         // Get the column value
                         string columnValue = "";
 
-                        if (row[i] != DBNull.Value && row[i] != null)
+                        if (rowCur[i] != DBNull.Value && rowCur[i] != null)
                         {
-                            columnValue = Convert.ToString(row[i]);
-
-                            // Replace any single quotes with double single quotes
-                            columnValue = columnValue.Replace("'", "''");
-                        }
-
-                        // TO DO:
-                        // For integers dont wrap in quotes
-                        // For strings and dates wrap in quotes
-                        // Trim based on column length
-
-                        if (PrimaryKeys.Contains(columnName))
-                        {
-                            // This is a primary key
-                            // Add to the Where clause list
-                            //colSQLWhereColumns
-
-                            if (columnType.Contains("int"))
+                            if ((Convert.ToString(rowCur[i]) != "") && (Convert.ToString(rowCur[i]) != null))
                             {
-                                colSQLWhereColumns.Add($"[{columnName}] = {columnValue}");
-                            }
-                            else
-                            {
-                                colSQLWhereColumns.Add($"[{columnName}] = '{columnValue}'");
-                            }
-                        }
-                        else
-                        {
-                            // This is not a primary key
-                            // Add to the list of columns to update
+                                columnValue = Convert.ToString(rowCur[i]);
 
-                            if (columnType.Contains("int"))
-                            {
-                                colSQLUpdateColumns.Add($"[{columnName}] = {columnValue}");
-                            }
-                            else
-                            {
-                                // Trim the column value based on the column length
-                                if (columnLength > 0)
+                                // Replace any single quotes with double single quotes
+                                columnValue = columnValue.Replace("'", "''");
+
+                                // For integers dont wrap in quotes
+                                // For strings and dates wrap in quotes
+                                // Trim based on column length
+
+                                if (columnType.Contains("int"))
                                 {
-                                    colSQLUpdateColumns.Add($"[{columnName}] = LEFT('{columnValue}',{columnLength})");
+                                    ColUpdateSQLValues.Add($"{columnValue}");
                                 }
                                 else
                                 {
-                                    // Do not add the LEFT function
-                                    colSQLUpdateColumns.Add($"[{columnName}] = '{columnValue}'");
+                                    // Trim the column value based on the column length
+                                    if (columnLength > 0)
+                                    {
+                                        ColUpdateSQLValues.Add($"LEFT('{columnValue}',{columnLength})");
+                                    }
+                                    else
+                                    {
+                                        // Do not add the LEFT function
+                                        ColUpdateSQLValues.Add($"'{columnValue}'");
+                                    }
                                 }
                             }
                         }
@@ -937,7 +918,7 @@ else
                     if (colSQLUpdateColumns.Count > 0)
                     {
                         UpdateSQLColums = string.Join(",", colSQLUpdateColumns.ToArray());
-                        WhereSQLColums = string.Join(" AND ", colSQLWhereColumns.ToArray());
+                        UpdateSQLValues = string.Join(",", ColUpdateSQLValues.ToArray());
 
                         using (SqlConnection connection = new SqlConnection(DatabaseConnectionString))
                         {
@@ -945,7 +926,7 @@ else
                             {
                                 connection.Open();
 
-                                string sql = $"INSERT INTO {selectedTable} ({UpdateSQLColums}) VALUES ({WhereSQLColums})";
+                                string sql = $"INSERT INTO {selectedTable} ({UpdateSQLColums}) VALUES ({UpdateSQLValues})";
 
                                 using (SqlCommand command = new SqlCommand(sql, connection))
                                 {
@@ -954,7 +935,7 @@ else
                             }
                             catch (Exception ex)
                             {
-                                colGeneralErrors.Add($"Error on Row {row} - {ex.GetBaseException().Message}");
+                                colGeneralErrors.Add($"Error on Row {rowCur} - {ex.GetBaseException().Message}");
                             }
                             finally
                             {
@@ -970,8 +951,7 @@ else
 
 
                 // #3. Find Deleted Rows
-                var deletedRows = OriginalDataTable.AsEnumerable()
-                                .Where(row => !currentIds.Contains(row.Field<long>("_Id")));
+                //var deletedRows = OriginalDataTable.AsEnumerable().Where(row => !currentIds.Contains(row.Field<long>("_Id")));
             }
         }
         catch (Exception ex)

@@ -874,10 +874,34 @@ else
                     }
                 }
 
+                // ********************************************************************************************************************
                 // ** Start inserts and deletes
+                // ********************************************************************************************************************
 
                 // #2. Find Added Rows
                 var addedRows = CurrentDataTable.AsEnumerable().Where(row => row.Field<object>("_Id") == null).ToList();
+
+                // Get the identity columns
+                List<string> colIdentityColumns = new List<string>();
+
+                using (SqlConnection connection = new SqlConnection(DatabaseConnectionString))
+                {
+                    try
+                    {
+                        colIdentityColumns = GetIdentityColumns(connection, selectedTable);
+                    }
+                    catch 
+                    {
+                        // Do nothing
+                    }
+                    finally
+                    {
+                        if (connection.State == ConnectionState.Open)
+                        {
+                            connection.Close();
+                        }
+                    }
+                }
 
                 // Loop through the added rows
                 foreach (var rowCur in addedRows)
@@ -892,51 +916,54 @@ else
                     // Start at 1 to skip the _Id column
                     for (int i = 1; i < TableColumns.Count; i++)
                     {
-                        // Build a list of columns that have changed
-
-                        // Get the column name
-                        string columnName = TableColumns[i].ColumnName;
-
-                        // Get the column type
-                        string columnType = TableColumns[i].ColumnType;
-
-                        // Get the column length
-                        int columnLength = TableColumns[i].ColumnLength;
-
-                        // Add the column to the list of columns to update
-                        colSQLUpdateColumns.Add($"[{columnName}]");
-
-                        // Get the column value
-                        string columnValue = "";
-
-                        if (rowCur[i] != DBNull.Value && rowCur[i] != null)
+                        if (!colIdentityColumns.Contains(TableColumns[i].ColumnName))
                         {
-                            if ((Convert.ToString(rowCur[i]) != "") && (Convert.ToString(rowCur[i]) != null))
+                            // Build a list of columns that have changed
+
+                            // Get the column name
+                            string columnName = TableColumns[i].ColumnName;
+
+                            // Get the column type
+                            string columnType = TableColumns[i].ColumnType;
+
+                            // Get the column length
+                            int columnLength = TableColumns[i].ColumnLength;
+
+                            // Add the column to the list of columns to update
+                            colSQLUpdateColumns.Add($"[{columnName}]");
+
+                            // Get the column value
+                            string columnValue = "";
+
+                            if (rowCur[i] != DBNull.Value && rowCur[i] != null)
                             {
-                                columnValue = Convert.ToString(rowCur[i]);
-
-                                // Replace any single quotes with double single quotes
-                                columnValue = columnValue.Replace("'", "''");
-
-                                // For integers dont wrap in quotes
-                                // For strings and dates wrap in quotes
-                                // Trim based on column length
-
-                                if (columnType.Contains("int"))
+                                if ((Convert.ToString(rowCur[i]) != "") && (Convert.ToString(rowCur[i]) != null))
                                 {
-                                    ColUpdateSQLValues.Add($"{columnValue}");
-                                }
-                                else
-                                {
-                                    // Trim the column value based on the column length
-                                    if (columnLength > 0)
+                                    columnValue = Convert.ToString(rowCur[i]);
+
+                                    // Replace any single quotes with double single quotes
+                                    columnValue = columnValue.Replace("'", "''");
+
+                                    // For integers dont wrap in quotes
+                                    // For strings and dates wrap in quotes
+                                    // Trim based on column length
+
+                                    if (columnType.Contains("int"))
                                     {
-                                        ColUpdateSQLValues.Add($"LEFT('{columnValue}',{columnLength})");
+                                        ColUpdateSQLValues.Add($"{columnValue}");
                                     }
                                     else
                                     {
-                                        // Do not add the LEFT function
-                                        ColUpdateSQLValues.Add($"'{columnValue}'");
+                                        // Trim the column value based on the column length
+                                        if (columnLength > 0)
+                                        {
+                                            ColUpdateSQLValues.Add($"LEFT('{columnValue}',{columnLength})");
+                                        }
+                                        else
+                                        {
+                                            // Do not add the LEFT function
+                                            ColUpdateSQLValues.Add($"'{columnValue}'");
+                                        }
                                     }
                                 }
                             }
@@ -1142,6 +1169,55 @@ else
     }
     #endregion
 
+    #region public List<string> GetIdentityColumns(SqlConnection connection, string tableName)
+    public List<string> GetIdentityColumns(SqlConnection connection, string tableName)
+    {
+        List<string> identityColumns = new List<string>();
+
+        string strTableNameCleaned = StripTableSchemaAndBrackets(tableName);
+
+        try
+        {
+            string query = $@"
+            SELECT COLUMN_NAME
+            FROM INFORMATION_SCHEMA.COLUMNS
+            WHERE TABLE_NAME like '%{strTableNameCleaned}%'
+              AND COLUMNPROPERTY(OBJECT_ID(TABLE_SCHEMA + '.' + TABLE_NAME), COLUMN_NAME, 'IsIdentity') = 1";
+
+            using (SqlCommand command = new SqlCommand(query, connection))
+            {
+                connection.Open();
+
+                using (SqlDataReader reader = command.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        if (reader["COLUMN_NAME"] != DBNull.Value)
+                        {
+                            identityColumns.Add(reader["COLUMN_NAME"].ToString());
+                        }
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            // Handle exception (optional logging or rethrowing)
+            Console.WriteLine($"An error occurred: {ex.Message}");
+        }
+        finally
+        {
+            if (connection.State == ConnectionState.Open)
+            {
+                connection.Close();
+            }
+        }
+
+        return identityColumns;
+    }
+    #endregion
+
+
     #region public System.Type GetColumnType(string paramType)
     public System.Type GetColumnType(string paramType)
     {
@@ -1163,6 +1239,25 @@ else
         }
 
         return ReturnType;
+    }
+    #endregion
+
+    #region static string StripTableSchemaAndBrackets(string input)
+    static string StripTableSchemaAndBrackets(string input)
+    {
+        // Remove the square brackets
+        input = input.Replace("[", "").Replace("]", "");
+
+        // Find the position of the dot
+        int dotIndex = input.IndexOf('.');
+
+        // Extract the substring after the dot
+        if (dotIndex >= 0 && dotIndex < input.Length - 1)
+        {
+            input = input.Substring(dotIndex + 1);
+        }
+
+        return input;
     }
     #endregion
 

@@ -684,14 +684,38 @@ else
             {
                 try
                 {
-                    string currentValue = sheet.Cells[i, j].Value?.ToString() ?? "";
+                    if ((sheet.Cells[i, j].Value != null) && (sheet.Cells[i, j].Value != DBNull.Value))
+                    {
+                        if (CurrentDataTable.Columns[j].DataType.FullName == "System.Int32")
+                        {
+                            if (sheet.Cells[i, j]?.Value?.ToString() == "")
+                            {
+                                row[j] = DBNull.Value;
+                            }
+                            else
+                            {
+                                row[j] = Convert.ToInt32(sheet.Cells[i, j].Value);
+                            }
+                        }
+                        else
+                        {
+                            string currentValue = "";
 
-                    currentValue = currentValue.Replace("\r\n", " ")
-                                               .Replace("\t", " ")
-                                               .Replace("\r", " ")
-                                               .Replace("\n", " ")
-                                               .Trim();
-                    row[j] = currentValue;
+                            currentValue = sheet.Cells[i, j].Value?.ToString() ?? "";
+
+                            currentValue = currentValue.Replace("\r\n", " ")
+                                                       .Replace("\t", " ")
+                                                       .Replace("\r", " ")
+                                                       .Replace("\n", " ")
+                                                       .Trim();
+
+                            row[j] = currentValue;
+                        }
+                    }
+                    else
+                    {
+                        row[j] = CurrentDataTable.Columns[j].DefaultValue;
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -765,6 +789,10 @@ else
 
                                 // Replace any single quotes with double single quotes
                                 columnValue = columnValue.Replace("'", "''");
+                            }
+                            else
+                            {
+                                columnValue = "NULL";
                             }
 
                             // TO DO:

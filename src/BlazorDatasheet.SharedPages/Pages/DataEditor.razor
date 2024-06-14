@@ -1,5 +1,6 @@
 ﻿@page "/dataeditor"
 @using BlazorDatasheet.Core.Events
+@using BlazorDatasheet.Core.Events.Layout
 @using BlazorDatasheet.Core.Interfaces
 @using BlazorDatasheet.Core.Validation
 @using BlazorDatasheet.DataStructures.Geometry
@@ -53,13 +54,13 @@ else
 
         <Datasheet @ref="_datasheet"
                    ShowColHeadings="true"
-                   ShowRowHeadings="true"
+                   ShowRowHeadings="true"   
                    Sheet="sheet" />
     </div>
 }
 
 @code {
-#nullable disable
+    #nullable disable
 
     private Datasheet _datasheet;
     private Sheet sheet;
@@ -94,16 +95,6 @@ else
         await Task.Delay(1000);
 
         await ShowInlineDialog();
-    }
-
-
-    private void CellChaged(object sender, CellDataChangedEventArgs args)
-    {
-        // Only add the row if one cell is changed
-        if ((args.Positions.Count() > 0) && (args.Positions.Count() < 2))
-        {
-            ColChangedRows.Add(Convert.ToInt32(args.Positions.FirstOrDefault().row));
-        }
     }
 
     #region Datasheet Events
@@ -642,18 +633,44 @@ else
             ii++;
         }
 
-        sheet.Cells.CellsChanged += CellChaged;
+        // Wire up a method to catch cell changes
+        sheet.Cells.CellsChanged += CellChanged;
 
         // Turn on history
         sheet.EndBatchUpdates();
         sheet.Commands.ResumeHistory();
 
-        // disable default sort
+        // Disable default sort
         sheet.BeforeRangeSort += (sender, args) =>
         {
             args.Cancel = true;
-            var SortOptions = args.SortOptions;
         };
+
+        // Remove any colum that is added
+        sheet.Columns.ColumnInserted += (sender, args) =>
+        {
+            ColumnInsertedEventArgs columnInsertedEventArgs = args as ColumnInsertedEventArgs;
+
+            sheet.Columns.RemoveAt(args.ColumnIndex);
+        };
+
+        sheet.Columns.ColumnRemoved += (sender, args) =>
+        {
+            ColumnRemovedEventArgs columnRemovedEventArgs = args as ColumnRemovedEventArgs;
+
+            //sheet.Columns.InsertAt(args.ColumnIndex, 1);
+        };
+    }
+    #endregion
+
+    #region private void CellChaged(object sender, CellDataChangedEventArgs args)
+    private void CellChanged(object sender, CellDataChangedEventArgs args)
+    {
+        // Only add the row if one cell is changed
+        if ((args.Positions.Count() > 0) && (args.Positions.Count() < 2))
+        {
+            ColChangedRows.Add(Convert.ToInt32(args.Positions.FirstOrDefault().row));
+        }
     }
     #endregion
 
@@ -1216,7 +1233,6 @@ else
         return identityColumns;
     }
     #endregion
-
 
     #region public System.Type GetColumnType(string paramType)
     public System.Type GetColumnType(string paramType)

@@ -53,14 +53,19 @@ else
     <div style="overflow: scroll; width: 800px; height: 400px;">
 
         <Datasheet @ref="_datasheet"
+                   Sheet="sheet"
                    ShowColHeadings="true"
-                   ShowRowHeadings="true"   
-                   Sheet="sheet" />
+                   ShowRowHeadings="true"                   
+                   CanUserInsertRows="true"
+                   CanUserRemoveRows="true"
+                   CanUserInsertCols="false"
+                   CanUserRemoveCols="false"
+                   CanUserSort="false" />
     </div>
 }
 
 @code {
-    #nullable disable
+#nullable disable
 
     private Datasheet _datasheet;
     private Sheet sheet;
@@ -259,7 +264,7 @@ else
 
         <h4>@strStatusMessage</h4>
     </RadzenStack>
-       );
+           );
     }
     #endregion
 
@@ -292,7 +297,7 @@ else
             </tbody>
         </table>
     </RadzenStack>
-    );
+        );
     }
     #endregion
 
@@ -639,27 +644,6 @@ else
         // Turn on history
         sheet.EndBatchUpdates();
         sheet.Commands.ResumeHistory();
-
-        // Disable default sort
-        sheet.BeforeRangeSort += (sender, args) =>
-        {
-            args.Cancel = true;
-        };
-
-        // Remove any colum that is added
-        sheet.Columns.ColumnInserted += (sender, args) =>
-        {
-            ColumnInsertedEventArgs columnInsertedEventArgs = args as ColumnInsertedEventArgs;
-
-            sheet.Columns.RemoveAt(args.ColumnIndex);
-        };
-
-        sheet.Columns.ColumnRemoved += (sender, args) =>
-        {
-            ColumnRemovedEventArgs columnRemovedEventArgs = args as ColumnRemovedEventArgs;
-
-            //sheet.Columns.InsertAt(args.ColumnIndex, 1);
-        };
     }
     #endregion
 
@@ -907,7 +891,7 @@ else
                     {
                         colIdentityColumns = GetIdentityColumns(connection, selectedTable);
                     }
-                    catch 
+                    catch
                     {
                         // Do nothing
                     }

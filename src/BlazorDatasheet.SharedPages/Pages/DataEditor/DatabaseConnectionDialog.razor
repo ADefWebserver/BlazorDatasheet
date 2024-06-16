@@ -1,48 +1,6 @@
-﻿@code {
-    [Parameter] public EventCallback OnSetConnection { get; set; }
-    [Parameter] public EventCallback Close { get; set; }
-
-    private string ServerName { get; set; } = "localhost";
-    private string DatabaseName { get; set; } = "master";
-    private string IntegratedSecurityDisplay { get; set; } = "True";
-    private string DatabaseUsername { get; set; } = "";
-    private string DatabasePassword { get; set; } = "";
-    private bool boolProcessing { get; set; } = false;
-    private string strStatusMessage { get; set; } = "";
-
-    private List<string> OptionsTrueFalse = new List<string> { "True", "False" };
-
-    protected override void OnInitialized()
-    {
-        base.OnInitialized();
-    }
-
-    protected override void OnParametersSet()
-    {
-        base.OnParametersSet();
-    }
-
-    protected override void OnAfterRender(bool firstRender)
-    {
-        base.OnAfterRender(firstRender);
-    }
-
-    private async Task SetConnection()
-    {
-        boolProcessing = true;
-        strStatusMessage = "Processing...";
-
-        await Task.Delay(2000);
-
-        boolProcessing = false;
-        strStatusMessage = "Connection Set";
-    }
-
-    private void UpdateDialog(ChangeEventArgs e)
-    {
-        IntegratedSecurityDisplay = e.Value.ToString();
-    }
-}
+﻿@using ADefWebserverDataEditor
+@using System.Text
+@using Microsoft.Data.SqlClient
 
 <div class="modal fade show d-block" tabindex="-1" role="dialog" aria-labelledby="inlineDialogLabel" aria-hidden="true">
     <div class="modal-dialog" role="document">
@@ -112,7 +70,7 @@
                             <td>
                                 @if (!boolProcessing)
                                 {
-                                    <button type="button" class="btn btn-success" @onclick="() => OnSetConnection.InvokeAsync()">
+                                    <button type="button" class="btn btn-success" @onclick="() => SetConnection()">
                                         Set Database Connection
                                     </button>
                                 }
@@ -135,3 +93,154 @@
         </div>
     </div>
 </div>
+
+@code {
+    [Parameter] public EventCallback<ConnectionSetting> OnSetConnection { get; set; }
+    [Parameter] public EventCallback Close { get; set; }
+
+    private string ServerName { get; set; } = "localhost";
+    private string DatabaseName { get; set; } = "AdventureWorks2012";
+    private string IntegratedSecurityDisplay { get; set; } = "True";
+    private string DatabaseUsername { get; set; } = "";
+    private string DatabasePassword { get; set; } = "";
+    private bool boolProcessing { get; set; } = false;
+    private string strStatusMessage { get; set; } = "";
+    private string DatabaseConnectionString { get; set; } = "";
+
+    private List<string> OptionsTrueFalse = new List<string> { "True", "False" };
+
+    protected override void OnInitialized()
+    {
+        base.OnInitialized();
+    }
+
+    protected override void OnParametersSet()
+    {
+        base.OnParametersSet();
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        base.OnAfterRender(firstRender);
+    }
+
+    // Utility
+
+    #region private async Task SetConnection()
+    private async Task SetConnection()
+    {
+        boolProcessing = true;
+        strStatusMessage = "";
+
+        ConnectionSetting connectionSetting = new ConnectionSetting();
+
+        connectionSetting.DatabaseName = DatabaseName;
+        connectionSetting.IntegratedSecurity = Convert.ToBoolean(IntegratedSecurityDisplay);
+        connectionSetting.Password = DatabasePassword;
+        connectionSetting.ServerName = ServerName;
+        connectionSetting.Username = DatabaseUsername;
+
+        var result = SetConnectionSetting(connectionSetting);
+
+        if (result.Success)
+        {
+            await OnSetConnection.InvokeAsync(connectionSetting);
+        }
+        else
+        {
+            strStatusMessage = result.StatusMessage;
+        }
+
+        boolProcessing = false;
+        StateHasChanged();
+    }
+    #endregion
+
+    #region public DTOStatus SetConnectionSetting(ConnectionSetting objConnectionSetting)
+    public DTOStatus SetConnectionSetting(ConnectionSetting objConnectionSetting)
+    {
+        // The return message
+        DTOStatus objDTOStatus = new DTOStatus();
+        objDTOStatus.Success = true;
+
+        // Create a Database connection string
+        string strConnectionString = CreateDatabaseConnectionString(objConnectionSetting);
+
+        // Test the database connection string
+        if (DatabaseConnectionValid(strConnectionString))
+        {
+            try
+            {
+                objDTOStatus.Success = true;
+            }
+            catch (Exception ex)
+            {
+                // appsettings.json file update error
+                objDTOStatus.Success = false;
+                objDTOStatus.StatusMessage = ex.GetBaseException().Message;
+            }
+        }
+        else
+        {
+            // Bad connection setting
+            objDTOStatus.Success = false;
+            objDTOStatus.StatusMessage = "Connection settings are not valid";
+        }
+
+        // Return the result
+        return objDTOStatus;
+    }
+    #endregion
+
+    #region private string CreateDatabaseConnectionString(ConnectionSetting objConnectionSetting)
+    private string CreateDatabaseConnectionString(ConnectionSetting objConnectionSetting)
+    {
+        StringBuilder SB = new StringBuilder();
+        string strConnectionString = "";
+
+        string strUserInfo = (!objConnectionSetting.IntegratedSecurity) ?
+            String.Format("uid={0};pwd={1}",
+            objConnectionSetting.Username,
+            objConnectionSetting.Password) :
+            "integrated security=True";
+
+        strConnectionString = String.Format("{0}data source={1};initial catalog={2};{3};TrustServerCertificate=True",
+            SB.ToString(),
+            objConnectionSetting.ServerName,
+            objConnectionSetting.DatabaseName,
+            strUserInfo);
+
+        return strConnectionString;
+    }
+    #endregion
+
+    #region private bool DatabaseConnectionValid(string strConnectionString)
+    private bool DatabaseConnectionValid(string strConnectionString)
+    {
+        bool boolDatabaseConnectionValid = false;
+
+        // Try to connect to the database
+
+        try
+        {
+            using (SqlConnection connection = new SqlConnection(strConnectionString))
+            {
+                connection.Open();
+                boolDatabaseConnectionValid = true;
+                DatabaseConnectionString = strConnectionString;
+            }
+        }
+        catch
+        {
+            boolDatabaseConnectionValid = false;
+        }
+
+        return boolDatabaseConnectionValid;
+    }
+    #endregion
+
+    private void UpdateDialog(ChangeEventArgs e)
+    {
+        IntegratedSecurityDisplay = e.Value.ToString();
+    }
+}

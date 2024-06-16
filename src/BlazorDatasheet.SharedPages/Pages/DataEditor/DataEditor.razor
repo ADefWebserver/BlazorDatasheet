@@ -10,6 +10,8 @@
 @using BlazorDatasheet.Core.Formats
 @using BlazorDatasheet.Core.FormulaEngine
 
+@using ADefWebserverDataEditor
+
 @using Microsoft.Data.SqlClient
 @using System.Text;
 @using System.Data
@@ -62,7 +64,7 @@
 
 @if (ShowConnectionDialog)
 {
-    <DatabaseConnectionDialog Close="CloseShowConnectionDialog" OnSetConnection="setConnection" />
+    <DatabaseConnectionDialog Close="CloseShowConnectionDialog" OnSetConnection="SetConnectionString" />
 }
 
 @if (showPrimaryKeyWarningDialog)
@@ -225,31 +227,6 @@ else
     private string DatabaseUsername = "";
     private string DatabasePassword = "";
 
-    #region Classes
-    public class ConnectionSetting
-    {
-        public string DatabaseName { get; set; }
-        public string ServerName { get; set; }
-        public bool IntegratedSecurity { get; set; }
-        public string Username { get; set; }
-        public string Password { get; set; }
-    }
-
-    public class DTOStatus
-    {
-        public string StatusMessage { get; set; }
-        public bool Success { get; set; }
-    }
-
-    public class DTODatabaseColumn
-    {
-        public string ColumnName { get; set; }
-        public string ColumnType { get; set; }
-        public int ColumnLength { get; set; }
-        public bool IsPrimaryKey { get; set; }
-    }
-    #endregion    
-
     #region private void UpdateDialog()
     private void UpdateDialog()
     {
@@ -267,33 +244,37 @@ else
         ShowConnectionDialog = false;
     }
 
-    #region private async Task setConnection()
-    private async Task setConnection()
+    private async Task SetConnectionString(ConnectionSetting objConnectionSetting)
     {
-        boolProcessing = true;
-        strStatusMessage = "";
+        connectionSetting = objConnectionSetting;
 
-        connectionSetting.DatabaseName = DatabaseName;
-        connectionSetting.IntegratedSecurity = Convert.ToBoolean(IntegratedSecurityDisplay);
-        connectionSetting.Password = DatabasePassword;
-        connectionSetting.ServerName = ServerName;
-        connectionSetting.Username = DatabaseUsername;
+        strConnectionString = $"Server={connectionSetting.ServerName};Database={connectionSetting.DatabaseName};";
 
-        var result = SetConnectionSetting(connectionSetting);
-
-        if (result.Success)
+        if (connectionSetting.IntegratedSecurity)
         {
-            await GetTablesInDatabase();
+            strConnectionString += "Integrated Security=True;";
         }
         else
         {
-            strStatusMessage = result.StatusMessage;
+            strConnectionString += $"User Id={connectionSetting.Username};Password={connectionSetting.Password};";
         }
 
-        boolProcessing = false;
+        DatabaseConnectionString = strConnectionString;
+
+        ShowConnectionDialog = false;
+
+        isLoading = true;
+        StateHasChanged();
+
+        // Wait 1 second before loading the table data
+        // to join the UI thread
+        await Task.Delay(1000);
+
+        await GetTablesInDatabase();
+
+        isLoading = false;
         StateHasChanged();
     }
-    #endregion
 
     #region private void GetTablesInDatabase()
     private async Task GetTablesInDatabase()
@@ -917,90 +898,7 @@ else
     }
     #endregion
 
-    // Utility
-
-    #region public DTOStatus SetConnectionSetting(ConnectionSetting objConnectionSetting)
-    public DTOStatus SetConnectionSetting(ConnectionSetting objConnectionSetting)
-    {
-        // The return message
-        DTOStatus objDTOStatus = new DTOStatus();
-        objDTOStatus.Success = true;
-
-        // Create a Database connection string
-        strConnectionString = CreateDatabaseConnectionString(objConnectionSetting);
-
-        // Test the database connection string
-        if (DatabaseConnectionValid(strConnectionString))
-        {
-            try
-            {
-                objDTOStatus.Success = true;
-            }
-            catch (Exception ex)
-            {
-                // appsettings.json file update error
-                objDTOStatus.Success = false;
-                objDTOStatus.StatusMessage = ex.GetBaseException().Message;
-            }
-        }
-        else
-        {
-            // Bad connection setting
-            objDTOStatus.Success = false;
-            objDTOStatus.StatusMessage = "Connection settings are not valid";
-        }
-
-        // Return the result
-        return objDTOStatus;
-    }
-    #endregion
-
-    #region private string CreateDatabaseConnectionString(ConnectionSetting objConnectionSetting)
-    private string CreateDatabaseConnectionString(ConnectionSetting objConnectionSetting)
-    {
-        StringBuilder SB = new StringBuilder();
-        string strConnectionString = "";
-
-        string strUserInfo = (!objConnectionSetting.IntegratedSecurity) ?
-            String.Format("uid={0};pwd={1}",
-            objConnectionSetting.Username,
-            objConnectionSetting.Password) :
-            "integrated security=True";
-
-        strConnectionString = String.Format("{0}data source={1};initial catalog={2};{3};TrustServerCertificate=True",
-            SB.ToString(),
-            objConnectionSetting.ServerName,
-            objConnectionSetting.DatabaseName,
-            strUserInfo);
-
-        return strConnectionString;
-    }
-    #endregion
-
-    #region private bool DatabaseConnectionValid(string strConnectionString)
-    private bool DatabaseConnectionValid(string strConnectionString)
-    {
-        bool boolDatabaseConnectionValid = false;
-
-        // Try to connect to the database
-
-        try
-        {
-            using (SqlConnection connection = new SqlConnection(strConnectionString))
-            {
-                connection.Open();
-                boolDatabaseConnectionValid = true;
-                DatabaseConnectionString = strConnectionString;
-            }
-        }
-        catch
-        {
-            boolDatabaseConnectionValid = false;
-        }
-
-        return boolDatabaseConnectionValid;
-    }
-    #endregion
+    // Utility    
 
     #region public List<string> GetPrimaryKey(SqlConnection connection, string tableName)
     public List<string> GetPrimaryKey(SqlConnection connection, string tableName)

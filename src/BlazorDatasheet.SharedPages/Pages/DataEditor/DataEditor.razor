@@ -11,40 +11,73 @@
 @using BlazorDatasheet.Core.FormulaEngine
 
 @using Microsoft.Data.SqlClient
-@using Radzen
-@using Radzen.Blazor
-@using Radzen.Blazor.Rendering
 @using System.Text;
 @using System.Data
-@inject DialogService dialogService
 
 <PageTitle>Data Editor</PageTitle>
 
 <h1>Data Editor</h1>
-<RadzenLabel Text=@ErrorMessage />
+@if (!string.IsNullOrEmpty(ErrorMessage))
+{
+    <div>@ErrorMessage</div>
+}
 <br />
 <div class="rz-p-sm-1" style="background-color:whitesmoke;border-block:thin;border-block-color:lightgray;text-align:left">
-    <ToolBarEditorButton Click=@btnSave Disabled=@SavingDisabled Icon="save" IconColor="black" />
-    <span style="border-right: 2px solid #D3D3D3;" />
-    <ToolBarEditorButton Click="() => sheet.Commands.Undo()" Icon="undo" IconColor="black" Title="Undo" />
-    <ToolBarEditorButton Click="() => sheet.Commands.Redo()" Icon="redo" IconColor="black" Title="Redo" />
-    <span style="border-right: 2px solid #D3D3D3;" />
-    <ToolBarEditorButton Click=@InsertRowAfterSelection Icon="input" IconColor="black" Title="Insert Row" />
-    <ToolBarEditorButton Click=@RemoveRow Icon="logout" IconColor="black" Title="Delete Row" />
-    <span style="border-right: 2px solid #D3D3D3;" />
+    <button @onclick="btnSave" disabled="@SavingDisabled" style="background:none;border:none;">
+        <i class="material-icons" style="color:black;">save</i>
+    </button>
+    <span style="border-right: 2px solid #D3D3D3;"></span>
+    <button @onclick="() => sheet.Commands.Undo()" title="Undo" style="background:none;border:none;">
+        <i class="material-icons" style="color:black;">undo</i>
+    </button>
+    <button @onclick="() => sheet.Commands.Redo()" title="Redo" style="background:none;border:none;">
+        <i class="material-icons" style="color:black;">redo</i>
+    </button>
+    <span style="border-right: 2px solid #D3D3D3;"></span>
+    <button @onclick="InsertRowAfterSelection" title="Insert Row" style="background:none;border:none;">
+        <i class="material-icons" style="color:black;">input</i>
+    </button>
+    <button @onclick="RemoveRow" title="Delete Row" style="background:none;border:none;">
+        <i class="material-icons" style="color:black;">logout</i>
+    </button>
+    <span style="border-right: 2px solid #D3D3D3;"></span>
     <span>&nbsp; Table: </span>
-    <RadzenDropDown @bind-Value=@selectedTable Data=@tableNames Change=@(args => LoadTableData(args.ToString())) Style="width: 300px; border-block:hidden" Name="DropDownBindValue" />
+    <select @bind="selectedTable" @bind:event="onchange" style="width: 300px; border-block:hidden">
+        @foreach (var tableName in tableNames)
+        {
+            <option value="@tableName">@tableName</option>
+        }
+    </select>
     <span>&nbsp;</span>
-    <span style="border-right: 2px solid #D3D3D3;" />
-    <RadzenCheckBox @bind-Value=@UseValidation Name="CheckBoxValidation" /><RadzenLabel Text="Validators" Component="CheckBoxValidation" Style="margin-left: 8px; vertical-align: middle;" />
-    <ToolBarEditorButton Click=@btnExport Icon="download_for_offline" IconColor="black" Title="Export" />
-    <ToolBarEditorButton Click="@ShowInlineDialog" Icon="settings" IconColor="black" Title="Settings" />
+    <span style="border-right: 2px solid #D3D3D3;"></span>
+    <input type="checkbox" @bind="UseValidation" id="CheckBoxValidation" />
+    <label for="CheckBoxValidation" style="margin-left: 8px; vertical-align: middle;">Validators</label>
+    <button @onclick="btnExport" title="Export" style="background:none;border:none;">
+        <i class="material-icons" style="color:black;">download_for_offline</i>
+    </button>
+    <button @onclick="OpenShowConnectionDialog" title="Settings" style="background:none;border:none;">
+        <i class="material-icons" style="color:black;">settings</i>
+    </button>
 </div>
+
+@if (ShowConnectionDialog)
+{
+    <DatabaseConnectionDialog Close="CloseShowConnectionDialog" OnSetConnection="setConnection" />
+}
+
+@if (showPrimaryKeyWarningDialog)
+{
+    <PrimaryKeyWarningDialog Close="ClosePrimaryKeyWarningDialog" />
+}
+
+@if (showStatusDialog)
+{
+    <StatusDialog Close="CloseStatusDialog" GeneralErrors="colGeneralErrors" />
+}
 
 @if (isLoading)
 {
     <div class="rz-p-sm-1" style="background-color:whitesmoke;border-block:thin;border-block-color:lightgray;text-align:left">
-        <RadzenProgressBar Value="100" ShowValue="false" Mode="ProgressBarMode.Indeterminate" Style="margin-bottom: 20px" />
         <span>Processing...</span>
     </div>
 }
@@ -65,7 +98,7 @@ else
 }
 
 @code {
-#nullable disable
+    #nullable disable
 
     private Datasheet _datasheet;
     private Sheet sheet;
@@ -89,6 +122,10 @@ else
 
     string DatabaseConnectionString = "";
 
+    private bool ShowConnectionDialog { get; set; } = false;
+    private bool showPrimaryKeyWarningDialog { get; set; } = false;
+    private bool showStatusDialog { get; set; } = false;
+
     protected override async Task OnInitializedAsync()
     {
         sheet = new Sheet(numRows: 100000, numCols: 20000);
@@ -99,15 +136,15 @@ else
         // to join the UI thread
         await Task.Delay(1000);
 
-        await ShowInlineDialog();
+        ShowConnectionDialog = true;
     }
 
     #region Datasheet Events
-    private async Task btnSave()
+    private void btnSave()
     {
         if (SavingDisabled)
         {
-            await ShowPrimaryKeyWarningDialog();
+            ShowPrimaryKeyWarningDialog();
             return;
         }
 
@@ -147,6 +184,32 @@ else
     }
     #endregion
 
+    private void ShowStatusDialog()
+    {
+        showStatusDialog = true;
+    }
+
+    private void CloseStatusDialog()
+    {
+        showStatusDialog = false;
+    }
+
+    private void ShowPrimaryKeyWarningDialog()
+    {
+        showPrimaryKeyWarningDialog = true;
+    }
+
+    private void ClosePrimaryKeyWarningDialog()
+    {
+        showPrimaryKeyWarningDialog = false;
+    }
+
+    private async Task OnTableChange(Microsoft.AspNetCore.Components.ChangeEventArgs e)
+    {
+        selectedTable = e.Value.ToString();
+        await LoadTableData(selectedTable);
+    }
+
     // ********************************************************************************************************************
     // Database Connection
     // ********************************************************************************************************************
@@ -185,194 +248,30 @@ else
         public int ColumnLength { get; set; }
         public bool IsPrimaryKey { get; set; }
     }
-    #endregion
+    #endregion    
 
-    #region async Task ShowInlineDialog()
-    async Task ShowInlineDialog()
-    {
-        var result = await dialogService.OpenAsync("Database Connection", ds =>
-    @<RadzenStack Gap="1.5rem">
-        <table class="form-group" cellpadding="4" cellspacing="4">
-            <tbody>
-                <tr>
-                    <td>
-                        <label for="Title" class="control-label" style="font-weight: bold">Server: </label>
-                    </td>
-                    <td>
-                        <input type="text" id="ServerName" class="form-control" @bind="ServerName" />
-                    </td>
-                </tr>
-                <tr>
-                    <td>
-                        <label for="Title" class="control-label" style="font-weight: bold">Database: </label>
-                    </td>
-                    <td>
-                        <input type="text" id="DatabaseName" class="form-control" @bind="DatabaseName" />
-                    </td>
-                </tr>
-                <tr>
-                    <td>
-                        <label for="Title" class="control-label" style="font-weight: bold">Integrated Security: </label>
-                    </td>
-                    <td>
-                        <RadzenDropDown @bind-Value=@IntegratedSecurityDisplay Data=@OptionsTrueFalse Style="width: 300px;" Change=@(() => UpdateDialog(ds)) />
-                    </td>
-                </tr>
-                @if (IntegratedSecurityDisplay == "False")
-            {
-                <tr>
-                    <td>
-                        <label for="Title" class="control-label" style="font-weight: bold">Database Username: </label>
-                    </td>
-                    <td>
-                        <input type="text" id="DatabaseUsername" class="form-control" @bind="DatabaseUsername" />
-                    </td>
-                </tr>
-                <tr>
-                    <td>
-                        <label for="Title" class="control-label" style="font-weight: bold">Database Password: </label>
-                    </td>
-                    <td>
-                        <input type="password" id="DatabasePassword" class="form-control" @bind="DatabasePassword" />
-                    </td>
-                </tr>
-            }
-            </tbody>
-        </table>
-
-        <table class="form-group" cellpadding="4" cellspacing="4">
-            <tbody>
-                <tr>
-                    <td>
-                        @if (boolProcessing == false)
-                    {
-                        <button type="button" label="Set Database Connection"
-                                class="btn btn-success"
-                                @onclick=@(() => setConnection(ds))>
-                            Set Connection
-                        </button>
-                    }
-                    else
-                    {
-                        <RadzenProgressBar Value="100" ShowValue="false" Mode="ProgressBarMode.Indeterminate" Style="margin-bottom: 20px" />
-                        <span>Processing...</span>
-                    }
-                    </td>
-                </tr>
-            </tbody>
-        </table>
-
-        <h4>@strStatusMessage</h4>
-    </RadzenStack>
-           );
-    }
-    #endregion
-
-    #region async Task ShowPrimaryKeyWarningDialog()
-    async Task ShowPrimaryKeyWarningDialog()
-    {
-        var result = await dialogService.OpenAsync("Primary Key Warning", ds =>
-    @<RadzenStack Gap="1.5rem">
-        <table class="form-group" cellpadding="4" cellspacing="4">
-            <tbody>
-                <tr>
-                    <td>
-                        <label style="font-weight: bold">Table has no Primay Key - Saving will be disabled</label>
-                    </td>
-                </tr>
-            </tbody>
-        </table>
-
-        <table class="form-group" cellpadding="4" cellspacing="4">
-            <tbody>
-                <tr>
-                    <td>
-                        <button type="button" label="Set Database Connection"
-                                class="btn btn-success"
-                                @onclick=@(() => ds.Close())>
-                            Ok
-                        </button>
-                    </td>
-                </tr>
-            </tbody>
-        </table>
-    </RadzenStack>
-        );
-    }
-    #endregion
-
-    #region async Task ShowStatusDialog()
-    async Task ShowStatusDialog()
-    {
-        var result = await dialogService.OpenAsync("Save Status", ds =>
-    @<RadzenStack Gap="1.5rem">
-        <table class="form-group" cellpadding="4" cellspacing="4">
-            <tbody>
-                <tr>
-                    <td>
-                        @if(colGeneralErrors.Count == 0)
-                    {
-                        <label style="font-weight: bold">Saved</label>
-                    }
-                    else
-                    {
-                        <label style="font-weight: bold">Errors</label>
-                    }
-                    </td>
-                </tr>
-                <tr>
-                    <td>
-                        <!-- Scrollable container for errors -->
-                        <div style="height: 250px; overflow-y: scroll;">
-                            <table>
-                                @foreach(var item in colGeneralErrors)
-                            {
-                                <tr>
-                                    <td>
-                                        <label style="font-weight: bold">@item</label>
-                                    </td>
-                                </tr>
-                            }
-                            </table>
-                        </div>
-                    </td>
-                </tr>
-            </tbody>
-        </table>
-
-        <table class="form-group" cellpadding="4" cellspacing="4">
-            <tbody>
-                <tr>
-                    <td>
-                        <button type="button" label="Close"
-                                class="btn btn-success"
-                                @onclick=@(() => ds.Close())>
-                            Ok
-                        </button>
-                    </td>
-                </tr>
-            </tbody>
-        </table>
-    </RadzenStack>
-    );
-    }
-    #endregion
-
-    #region private void UpdateDialog(DialogService paramDS)
-    private void UpdateDialog(DialogService paramDS)
+    #region private void UpdateDialog()
+    private void UpdateDialog()
     {
         strStatusMessage = "";
-        paramDS.Refresh();
     }
     #endregion
 
-    #region private async Task setConnection(DialogService paramDS)
-    private async Task setConnection(DialogService paramDS)
+    private void OpenShowConnectionDialog()
+    {
+        ShowConnectionDialog = true;
+    }
+
+    private void CloseShowConnectionDialog()
+    {
+        ShowConnectionDialog = false;
+    }
+
+    #region private async Task setConnection()
+    private async Task setConnection()
     {
         boolProcessing = true;
         strStatusMessage = "";
-
-        paramDS.Refresh();
 
         connectionSetting.DatabaseName = DatabaseName;
         connectionSetting.IntegratedSecurity = Convert.ToBoolean(IntegratedSecurityDisplay);
@@ -384,7 +283,6 @@ else
 
         if (result.Success)
         {
-            paramDS.Close();
             await GetTablesInDatabase();
         }
         else
@@ -1015,7 +913,7 @@ else
             colGeneralErrors.Add(ex.GetBaseException().Message);
         }
 
-        await ShowStatusDialog();
+        ShowStatusDialog();
     }
     #endregion
 

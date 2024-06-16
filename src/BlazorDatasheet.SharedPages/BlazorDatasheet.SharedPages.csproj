@@ -15,7 +15,6 @@
     <ItemGroup>
         <PackageReference Include="Azure.Identity" Version="1.11.4" />
         <PackageReference Include="Microsoft.Data.SqlClient" Version="5.2.1" />
-        <PackageReference Include="Radzen.Blazor" Version="4.32.3" />
         <PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="8.0.6" />
     </ItemGroup>
 

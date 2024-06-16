@@ -1,0 +1,137 @@
+﻿@code {
+    [Parameter] public EventCallback OnSetConnection { get; set; }
+    [Parameter] public EventCallback Close { get; set; }
+
+    private string ServerName { get; set; } = "localhost";
+    private string DatabaseName { get; set; } = "master";
+    private string IntegratedSecurityDisplay { get; set; } = "True";
+    private string DatabaseUsername { get; set; } = "";
+    private string DatabasePassword { get; set; } = "";
+    private bool boolProcessing { get; set; } = false;
+    private string strStatusMessage { get; set; } = "";
+
+    private List<string> OptionsTrueFalse = new List<string> { "True", "False" };
+
+    protected override void OnInitialized()
+    {
+        base.OnInitialized();
+    }
+
+    protected override void OnParametersSet()
+    {
+        base.OnParametersSet();
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        base.OnAfterRender(firstRender);
+    }
+
+    private async Task SetConnection()
+    {
+        boolProcessing = true;
+        strStatusMessage = "Processing...";
+
+        await Task.Delay(2000);
+
+        boolProcessing = false;
+        strStatusMessage = "Connection Set";
+    }
+
+    private void UpdateDialog(ChangeEventArgs e)
+    {
+        IntegratedSecurityDisplay = e.Value.ToString();
+    }
+}
+
+<div class="modal fade show d-block" tabindex="-1" role="dialog" aria-labelledby="inlineDialogLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="inlineDialogLabel">Database Connection</h5>
+                <button type="button" class="close" aria-label="Close" @onclick="() => Close.InvokeAsync()">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <table class="form-group" cellpadding="4" cellspacing="4">
+                    <tbody>
+                        <tr>
+                            <td>
+                                <label for="ServerName" class="control-label" style="font-weight: bold">Server: </label>
+                            </td>
+                            <td>
+                                <input type="text" id="ServerName" class="form-control" @bind="ServerName" />
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <label for="DatabaseName" class="control-label" style="font-weight: bold">Database: </label>
+                            </td>
+                            <td>
+                                <input type="text" id="DatabaseName" class="form-control" @bind="DatabaseName" />
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <label for="IntegratedSecurity" class="control-label" style="font-weight: bold">Integrated Security: </label>
+                            </td>
+                            <td>
+                                <select @bind="IntegratedSecurityDisplay" @bind:event="onchange" class="form-control" style="width: 300px;">
+                                    @foreach (var option in OptionsTrueFalse)
+                                    {
+                                        <option value="@option">@option</option>
+                                    }
+                                </select>
+                            </td>
+                        </tr>
+                        @if (IntegratedSecurityDisplay == "False")
+                        {
+                            <tr>
+                                <td>
+                                    <label for="DatabaseUsername" class="control-label" style="font-weight: bold">Database Username: </label>
+                                </td>
+                                <td>
+                                    <input type="text" id="DatabaseUsername" class="form-control" @bind="DatabaseUsername" />
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <label for="DatabasePassword" class="control-label" style="font-weight: bold">Database Password: </label>
+                                </td>
+                                <td>
+                                    <input type="password" id="DatabasePassword" class="form-control" @bind="DatabasePassword" />
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+                <table class="form-group" cellpadding="4" cellspacing="4">
+                    <tbody>
+                        <tr>
+                            <td>
+                                @if (!boolProcessing)
+                                {
+                                    <button type="button" class="btn btn-success" @onclick="() => OnSetConnection.InvokeAsync()">
+                                        Set Database Connection
+                                    </button>
+                                }
+                                else
+                                {
+                                    <div class="progress" style="margin-bottom: 20px;">
+                                        <div class="progress-bar progress-bar-striped progress-bar-animated" style="width: 100%;"></div>
+                                    </div>
+                                    <span>Processing...</span>
+                                }
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+                <h4>@strStatusMessage</h4>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" @onclick="() => Close.InvokeAsync()">Close</button>
+            </div>
+        </div>
+    </div>
+</div>

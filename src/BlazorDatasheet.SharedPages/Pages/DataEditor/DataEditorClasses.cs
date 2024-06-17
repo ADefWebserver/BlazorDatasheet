@@ -19,6 +19,7 @@ namespace ADefWebserverDataEditor
     public class DTOStatus
     {
         public string StatusMessage { get; set; }
+        public string ConnectionString { get; set; }
         public bool Success { get; set; }
     }
 

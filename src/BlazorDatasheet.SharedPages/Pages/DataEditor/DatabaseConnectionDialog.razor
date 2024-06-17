@@ -95,10 +95,10 @@
 </div>
 
 @code {
-    [Parameter] public EventCallback<ConnectionSetting> OnSetConnection { get; set; }
+    [Parameter] public EventCallback<string> OnSetConnection { get; set; }
     [Parameter] public EventCallback Close { get; set; }
 
-    private string ServerName { get; set; } = "localhost";
+    private string ServerName { get; set; } = "(local)";
     private string DatabaseName { get; set; } = "AdventureWorks2012";
     private string IntegratedSecurityDisplay { get; set; } = "True";
     private string DatabaseUsername { get; set; } = "";
@@ -124,6 +124,11 @@
         base.OnAfterRender(firstRender);
     }
 
+    private void UpdateDialog(ChangeEventArgs e)
+    {
+        IntegratedSecurityDisplay = e.Value.ToString();
+    }
+
     // Utility
 
     #region private async Task SetConnection()
@@ -140,11 +145,11 @@
         connectionSetting.ServerName = ServerName;
         connectionSetting.Username = DatabaseUsername;
 
-        var result = SetConnectionSetting(connectionSetting);
+        DTOStatus result = SetConnectionSetting(connectionSetting);
 
         if (result.Success)
         {
-            await OnSetConnection.InvokeAsync(connectionSetting);
+            await OnSetConnection.InvokeAsync(result.ConnectionString);
         }
         else
         {
@@ -172,6 +177,7 @@
             try
             {
                 objDTOStatus.Success = true;
+                objDTOStatus.ConnectionString = strConnectionString;
             }
             catch (Exception ex)
             {
@@ -238,9 +244,4 @@
         return boolDatabaseConnectionValid;
     }
     #endregion
-
-    private void UpdateDialog(ChangeEventArgs e)
-    {
-        IntegratedSecurityDisplay = e.Value.ToString();
-    }
 }

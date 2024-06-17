@@ -44,7 +44,7 @@
     </button>
     <span style="border-right: 2px solid #D3D3D3;"></span>
     <span>&nbsp; Table: </span>
-    <select @bind="selectedTable" @bind:event="onchange" style="width: 300px; border-block:hidden">
+    <select @onchange="OnSelectedTableChanged" style="width: 300px; border-block:hidden">
         @foreach (var tableName in tableNames)
         {
             <option value="@tableName">@tableName</option>
@@ -90,7 +90,7 @@ else
         <Datasheet @ref="_datasheet"
                    Sheet="sheet"
                    ShowColHeadings="true"
-                   ShowRowHeadings="true"                   
+                   ShowRowHeadings="true"
                    CanUserInsertRows="true"
                    CanUserRemoveRows="true"
                    CanUserInsertCols="false"
@@ -100,7 +100,7 @@ else
 }
 
 @code {
-    #nullable disable
+#nullable disable
 
     private Datasheet _datasheet;
     private Sheet sheet;
@@ -186,6 +186,8 @@ else
     }
     #endregion
 
+    #region StatusDialog
+
     private void ShowStatusDialog()
     {
         showStatusDialog = true;
@@ -205,60 +207,43 @@ else
     {
         showPrimaryKeyWarningDialog = false;
     }
-
-    private async Task OnTableChange(Microsoft.AspNetCore.Components.ChangeEventArgs e)
-    {
-        selectedTable = e.Value.ToString();
-        await LoadTableData(selectedTable);
-    }
+    #endregion
 
     // ********************************************************************************************************************
     // Database Connection
     // ********************************************************************************************************************
 
-    private ConnectionSetting connectionSetting = new ConnectionSetting();
-    string IntegratedSecurityDisplay = "True";
-    List<string> OptionsTrueFalse = new List<string>() { "True", "False" };
-    string strStatusMessage = "";
-    bool boolProcessing = false;
-
-    private string DatabaseName = "AdventureWorks2012";
-    private string ServerName = "(local)";
-    private string DatabaseUsername = "";
-    private string DatabasePassword = "";
-
-    #region private void UpdateDialog()
-    private void UpdateDialog()
-    {
-        strStatusMessage = "";
-    }
-    #endregion
-
+    #region private void OpenShowConnectionDialog()
     private void OpenShowConnectionDialog()
     {
         ShowConnectionDialog = true;
     }
+    #endregion
 
+    #region private void CloseShowConnectionDialog()
     private void CloseShowConnectionDialog()
     {
         ShowConnectionDialog = false;
     }
+    #endregion
 
-    private async Task SetConnectionString(ConnectionSetting objConnectionSetting)
+    #region private async Task OnSelectedTableChanged(Microsoft.AspNetCore.Components.ChangeEventArgs e)
+    private async Task OnSelectedTableChanged(Microsoft.AspNetCore.Components.ChangeEventArgs e)
     {
-        connectionSetting = objConnectionSetting;
+        selectedTable = e.Value.ToString();
 
-        strConnectionString = $"Server={connectionSetting.ServerName};Database={connectionSetting.DatabaseName};";
+        // Wait 1 second before loading the table data
+        // to join the UI thread
+        await Task.Delay(1000);
 
-        if (connectionSetting.IntegratedSecurity)
-        {
-            strConnectionString += "Integrated Security=True;";
-        }
-        else
-        {
-            strConnectionString += $"User Id={connectionSetting.Username};Password={connectionSetting.Password};";
-        }
+        LoadTableData(selectedTable);
+    }
+    #endregion
 
+    #region private async Task SetConnectionString(string strConnectionString)
+    private async Task SetConnectionString(string strConnectionString)
+    {
+        // Set the connection string to the gloabl variable
         DatabaseConnectionString = strConnectionString;
 
         ShowConnectionDialog = false;
@@ -275,6 +260,7 @@ else
         isLoading = false;
         StateHasChanged();
     }
+    #endregion
 
     #region private void GetTablesInDatabase()
     private async Task GetTablesInDatabase()
@@ -320,7 +306,7 @@ else
                 // to join the UI thread
                 await Task.Delay(1000);
 
-                await LoadTableData(selectedTable);
+                LoadTableData(selectedTable);
 
                 isLoading = false;
                 StateHasChanged();
@@ -329,8 +315,8 @@ else
     }
     #endregion
 
-    #region private async Task LoadTableData(string paramSelectedTable)
-    private async Task LoadTableData(string paramSelectedTable)
+    #region private void LoadTableData(string paramSelectedTable)
+    private void LoadTableData(string paramSelectedTable)
     {
         ErrorMessage = "";
         selectedTable = paramSelectedTable;
@@ -508,7 +494,7 @@ else
 
                 if (objDatabaseColumn.IsPrimaryKey)
                 {
-                    sheet.Cells[ii, i].Format = new CellFormat() { IsReadOnly = true };
+                    sheet.Cells[ii, i].Format = new CellFormat() { IsReadOnly = true , BackgroundColor = "lightgrey" };
                 }
 
                 i++;
@@ -898,7 +884,7 @@ else
     }
     #endregion
 
-    // Utility    
+    // Utility
 
     #region public List<string> GetPrimaryKey(SqlConnection connection, string tableName)
     public List<string> GetPrimaryKey(SqlConnection connection, string tableName)

@@ -54,9 +54,6 @@
     <span style="border-right: 2px solid #D3D3D3;"></span>
     <input type="checkbox" @bind="UseValidation" id="CheckBoxValidation" />
     <label for="CheckBoxValidation" style="margin-left: 8px; vertical-align: middle;">Validators</label>
-    <button @onclick="btnExport" title="Export" style="background:none;border:none;">
-        <i class="material-icons" style="color:black;">download_for_offline</i>
-    </button>
     <button @onclick="OpenShowConnectionDialog" title="Settings" style="background:none;border:none;">
         <i class="material-icons" style="color:black;">settings</i>
     </button>
@@ -159,11 +156,6 @@ else
         {
             ErrorMessage = ex.GetBaseException().Message;
         }
-    }
-
-    private void btnExport()
-    {
-        ErrorMessage = "Export button clicked";
     }
 
     private void InsertRowAfterSelection()

@@ -183,6 +183,11 @@ else
             return;
         }
 
+        if (sheet.NumRows == 1)
+        {
+            return;
+        }
+
         sheet.Rows.RemoveAt(sheet.Selection.ActiveRegion.Top);
     }
     #endregion
@@ -449,7 +454,15 @@ else
     private void LoadTableHeadersAndData(List<DTODatabaseColumn> paramDatabaseColumns, DataTable paramDataTable)
     {
         // Create sheet with the number of columns
-        sheet = new Sheet(paramDataTable.Rows.Count, paramDatabaseColumns.Count);
+        // Do not allow sheet to be empty
+        int intRows = paramDataTable.Rows.Count;
+
+        if (intRows == 0)
+        {
+            intRows = 1;
+        }
+
+        sheet = new Sheet(intRows, paramDatabaseColumns.Count);
 
         // Turn off history
         sheet.BatchUpdates();
@@ -506,6 +519,24 @@ else
 
         // Wire up a method to catch cell changes
         sheet.Cells.CellsChanged += CellChanged;
+
+        // Wire up a method to catch row changes
+        // Do not allow the last row to be deleted
+        sheet.Rows.RowRemoved += (sender, args) =>
+        {
+            // Turn off history
+            sheet.BatchUpdates();
+            sheet.Commands.PauseHistory();
+
+            if(sheet.NumRows == 0)
+            {
+                sheet.Rows.InsertRowAt(0);
+            }
+
+            // Turn off history
+            sheet.EndBatchUpdates();
+            sheet.Commands.ResumeHistory();
+        };
 
         // Turn on history
         sheet.EndBatchUpdates();

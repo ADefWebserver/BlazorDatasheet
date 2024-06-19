@@ -628,8 +628,8 @@ else
     }
     #endregion
 
-    #region public void GetChanges()
-    public async void GetChanges()
+    #region public GetChanges()
+    public void GetChanges()
     {
         try
         {
@@ -900,8 +900,6 @@ else
                         }
                     }
                 }
-
-
 
                 // #3. Find Deleted Rows
                 //var deletedRows = OriginalDataTable.AsEnumerable().Where(row => !currentIds.Contains(row.Field<long>("_Id")));

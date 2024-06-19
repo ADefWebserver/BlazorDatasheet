@@ -380,6 +380,9 @@ else
                 // Remove from TableColumns any colums types of hierarchyid
                 TableColumns = TableColumns.Where(x => x.ColumnType != "hierarchyid").ToList();
 
+                // Remove from TableColumns any colums types of varbinary
+                TableColumns = TableColumns.Where(x => x.ColumnType != "varbinary").ToList();
+
                 // Remove from TableColumns any colums types of computed
                 // remove colums conatined in the ComputedColumns list
                 TableColumns = TableColumns.Where(x => !ComputedColumns.Contains(x.ColumnName)).ToList();
@@ -765,7 +768,7 @@ else
                 }
 
                 // ********************************************************************************************************************
-                // ** Start inserts and deletes
+                // ** Inserts
                 // ********************************************************************************************************************
 
                 // #2. Find Added Rows
@@ -905,7 +908,11 @@ else
             WhereSQLColums = "";
 
             // Step 1: Get all the _Id values from CurrentDataTable
-            var currentIds = CurrentDataTable.AsEnumerable().Select(r => r.Field<int>("_Id")).ToList();
+
+            // Get all the _Id values from CurrentDataTable that are not null
+            var NotNullTableColection = CurrentDataTable.AsEnumerable().Where(row => row.Field<object>("_Id") != null).ToList();
+
+            var currentIds = NotNullTableColection.AsEnumerable().Select(r => r.Field<int>("_Id")).ToList();
 
             // Convert currentIds to long
             List<long> longCurrentIds = currentIds.Select(x => (long)x).ToList();

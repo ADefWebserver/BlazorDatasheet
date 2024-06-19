@@ -10,20 +10,23 @@
                 <h5 class="modal-title">@((GeneralErrors.Count == 0) ? "Saved" : "Errors")</h5>
                 <button type="button" class="btn-close" aria-label="Close" @onclick="() => Close.InvokeAsync()"></button>
             </div>
-            <div class="modal-body">
-                <div style="height: 250px; overflow-y: scroll;">
-                    <table>
-                        @foreach (var item in GeneralErrors)
-                        {
-                            <tr>
-                                <td>
-                                    <label style="font-weight: bold">@item</label>
-                                </td>
-                            </tr>
-                        }
-                    </table>
+            @if (GeneralErrors.Count > 0)
+            {
+                <div class="modal-body">
+                    <div style="height: 250px; overflow-y: scroll;">
+                        <table>
+                            @foreach (var item in GeneralErrors)
+                            {
+                                <tr>
+                                    <td>
+                                        <label style="font-weight: bold">@item</label>
+                                    </td>
+                                </tr>
+                            }
+                        </table>
+                    </div>
                 </div>
-            </div>
+            }
             <div class="modal-footer">
                 <button type="button" class="btn btn-success" @onclick="() => Close.InvokeAsync()">Ok</button>
             </div>

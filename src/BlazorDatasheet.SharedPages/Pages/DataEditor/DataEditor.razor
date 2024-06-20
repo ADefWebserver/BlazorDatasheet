@@ -673,16 +673,16 @@ else
                 string columnType = TableColumns[i].ColumnType;
                 int columnLength = TableColumns[i].ColumnLength;
 
-                string columnValue = 
-                rowCur[i] != DBNull.Value 
-                ? Convert.ToString(rowCur[i]).Replace("'", "''") 
+                string columnValue =
+                rowCur[i] != DBNull.Value
+                ? Convert.ToString(rowCur[i]).Replace("'", "''")
                 : "NULL";
 
                 if (PrimaryKeys.Contains(columnName))
                 {
                     colSQLWhereColumns.Add(
-                        columnType.Contains("int") 
-                        ? $"[{columnName}] = {columnValue}" 
+                        columnType.Contains("int")
+                        ? $"[{columnName}] = {columnValue}"
                         : $"[{columnName}] = '{columnValue}'"
                         );
                 }
@@ -695,8 +695,8 @@ else
                     else
                     {
                         colSQLUpdateColumns.Add(
-                            columnLength > 0 
-                            ? $"[{columnName}] = LEFT('{columnValue}',{columnLength})" 
+                            columnLength > 0
+                            ? $"[{columnName}] = LEFT('{columnValue}',{columnLength})"
                             : $"[{columnName}] = '{columnValue}'"
                         );
                     }
@@ -735,7 +735,10 @@ else
     private void ProcessInsertedRows()
     {
         // Find Added Rows
-        var addedRows = CurrentDataTable.AsEnumerable().Where(row => row.Field<object>("_Id") == null).ToList();
+        var addedRows =
+        CurrentDataTable.AsEnumerable()
+        .Where(row => row.Field<object>("_Id") == null)
+        .ToList();
 
         // Get the identity columns
         List<string> colIdentityColumns = new List<string>();
@@ -744,11 +747,8 @@ else
         {
             try
             {
-                colIdentityColumns = GetIdentityColumns(connection, selectedTable);
-            }
-            catch
-            {
-                // Do nothing
+                colIdentityColumns =
+                GetIdentityColumns(connection, selectedTable);
             }
             finally
             {
@@ -762,74 +762,49 @@ else
         // Loop through the added rows
         foreach (var rowCur in addedRows)
         {
-            List<string> colSQLUpdateColumns = new List<string>();
-            List<string> ColUpdateSQLValues = new List<string>();
+            var colSQLUpdateColumns = new List<string>();
+            var colUpdateSQLValues = new List<string>();
 
-            string UpdateSQLColums = "";
-            string UpdateSQLValues = "";
-
-            // Loop through the columns
-            // Start at 1 to skip the _Id column
+            // Loop through the columns, skipping the _Id column
             for (int i = 1; i < TableColumns.Count; i++)
             {
                 if (!colIdentityColumns.Contains(TableColumns[i].ColumnName))
                 {
-                    // Build a list of columns that have changed
-
-                    // Get the column name
                     string columnName = TableColumns[i].ColumnName;
-
-                    // Get the column type
                     string columnType = TableColumns[i].ColumnType;
-
-                    // Get the column length
                     int columnLength = TableColumns[i].ColumnLength;
 
-                    // Add the column to the list of columns to update
                     colSQLUpdateColumns.Add($"[{columnName}]");
 
-                    // Get the column value
-                    string columnValue = "";
+                    string columnValue =
+                    rowCur[i] != DBNull.Value && rowCur[i] != null
+                    ? Convert.ToString(rowCur[i]).Replace("'", "''")
+                    : "";
 
-                    if (rowCur[i] != DBNull.Value && rowCur[i] != null)
+                    if (columnType.Contains("int"))
                     {
-                        if ((Convert.ToString(rowCur[i]) != "") && (Convert.ToString(rowCur[i]) != null))
+                        colUpdateSQLValues.Add($"{columnValue}");
+                    }
+                    else
+                    {
+                        if (columnLength > 0)
                         {
-                            columnValue = Convert.ToString(rowCur[i]);
-
-                            // Replace any single quotes with double single quotes
-                            columnValue = columnValue.Replace("'", "''");
-
-                            // For integers dont wrap in quotes
-                            // For strings and dates wrap in quotes
-                            // Trim based on column length
-
-                            if (columnType.Contains("int"))
-                            {
-                                ColUpdateSQLValues.Add($"{columnValue}");
-                            }
-                            else
-                            {
-                                // Trim the column value based on the column length
-                                if (columnLength > 0)
-                                {
-                                    ColUpdateSQLValues.Add($"LEFT('{columnValue}',{columnLength})");
-                                }
-                                else
-                                {
-                                    // Do not add the LEFT function
-                                    ColUpdateSQLValues.Add($"'{columnValue}'");
-                                }
-                            }
+                            colUpdateSQLValues.Add(
+                                $"LEFT('{columnValue}',{columnLength})");
+                        }
+                        else
+                        {
+                            colUpdateSQLValues.Add(
+                                $"'{columnValue}'");
                         }
                     }
                 }
             }
 
-            if (colSQLUpdateColumns.Count > 0)
+            if (colSQLUpdateColumns.Any())
             {
-                UpdateSQLColums = string.Join(",", colSQLUpdateColumns.ToArray());
-                UpdateSQLValues = string.Join(",", ColUpdateSQLValues.ToArray());
+                string updateSQLColumns = string.Join(",", colSQLUpdateColumns);
+                string updateSQLValues = string.Join(",", colUpdateSQLValues);
 
                 using (SqlConnection connection = new SqlConnection(DatabaseConnectionString))
                 {
@@ -837,7 +812,8 @@ else
                     {
                         connection.Open();
 
-                        string sql = $"INSERT INTO {selectedTable} ({UpdateSQLColums}) VALUES ({UpdateSQLValues})";
+                        string sql =
+                        $"INSERT INTO {selectedTable} ({updateSQLColumns}) VALUES ({updateSQLValues})";
 
                         using (SqlCommand command = new SqlCommand(sql, connection))
                         {
@@ -846,7 +822,9 @@ else
                     }
                     catch (Exception ex)
                     {
-                        colGeneralErrors.Add($"Error on Row {rowCur} - {ex.GetBaseException().Message}");
+                        colGeneralErrors.Add(
+                            $"Error on Row {rowCur} - {ex.GetBaseException().Message}"
+                        );
                     }
                     finally
                     {

@@ -636,6 +636,10 @@ else
             // If there are changed rows
             if (ColChangedRows.Count() > 0)
             {
+                // ********************************************************************************************************************
+                // Updates
+                // ********************************************************************************************************************
+
                 // Loop through the changed rows
                 foreach (int row in ColChangedRows)
                 {
@@ -761,7 +765,7 @@ else
                 }
 
                 // ********************************************************************************************************************
-                // ** Inserts
+                // Inserts
                 // ********************************************************************************************************************
 
                 // #2. Find Added Rows
@@ -890,118 +894,11 @@ else
                 }
             }
 
-            // #3. Find Deleted Rows
+            // ********************************************************************************************************************
+            // Deletes
+            // ********************************************************************************************************************
 
-            colSQLUpdateColumns = new List<string>();
-            ColUpdateSQLValues = new List<string>();
-            colSQLWhereColumns = new List<string>();
-
-            UpdateSQLColums = "";
-            UpdateSQLValues = "";
-            WhereSQLColums = "";
-
-            // Step 1: Get all the _Id values from CurrentDataTable
-
-            // Get all the _Id values from CurrentDataTable that are not null
-            var NotNullTableColection = CurrentDataTable.AsEnumerable().Where(row => row.Field<object>("_Id") != null).ToList();
-
-            var currentIds = NotNullTableColection.AsEnumerable().Select(r => r.Field<int>("_Id")).ToList();
-
-            // Convert currentIds to long
-            List<long> longCurrentIds = currentIds.Select(x => (long)x).ToList();
-
-            // Step 2: Filter OriginalDataTable to get the rows that are not present in CurrentDataTable
-            var deletedRows = OriginalDataTable.AsEnumerable()
-                                               .Where(row => !longCurrentIds.Contains(row.Field<long>("_Id")));
-
-            // Loop through the deleted rows
-            foreach (var rowCur in deletedRows)
-            {
-                colSQLWhereColumns = new List<string>();
-
-                WhereSQLColums = "";
-
-                // Loop through the columns
-                // Start at 1 to skip the _Id column
-                for (int i = 1; i < TableColumns.Count; i++)
-                {
-                    // Build a list of columns that have changed
-
-                    // Get the column name
-                    string columnName = TableColumns[i].ColumnName;
-
-                    // Get the column type
-                    string columnType = TableColumns[i].ColumnType;
-
-                    // Get the column value
-                    string columnValue = "";
-
-                    if (rowCur[i] != DBNull.Value && rowCur[i] != null)
-                    {
-                        columnValue = Convert.ToString(rowCur[i]);
-
-                        // Replace any single quotes with double single quotes
-                        columnValue = columnValue.Replace("'", "''");
-                    }
-                    else
-                    {
-                        columnValue = "NULL";
-                    }
-
-                    // TO DO:
-                    // For integers dont wrap in quotes
-                    // For strings and dates wrap in quotes
-                    // Trim based on column length
-
-                    if (PrimaryKeys.Contains(columnName))
-                    {
-                        // This is a primary key
-                        // Add to the Where clause list
-                        //colSQLWhereColumns
-
-                        if (columnType.Contains("int"))
-                        {
-                            colSQLWhereColumns.Add($"[{columnName}] = {columnValue}");
-                        }
-                        else
-                        {
-                            colSQLWhereColumns.Add($"[{columnName}] = '{columnValue}'");
-                        }
-                    }
-                }
-
-                if (colSQLWhereColumns.Count > 0)
-                {
-                    WhereSQLColums = string.Join(" AND ", colSQLWhereColumns.ToArray());
-
-                    using (SqlConnection connection = new SqlConnection(DatabaseConnectionString))
-                    {
-                        try
-                        {
-                            connection.Open();
-
-                            string sql = $"DELETE FROM {selectedTable} WHERE {WhereSQLColums}";
-
-                            using (SqlCommand command = new SqlCommand(sql, connection))
-                            {
-                                command.ExecuteNonQuery();
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            colGeneralErrors.Add($"Error on Row {rowCur} - {ex.GetBaseException().Message}");
-                        }
-                        finally
-                        {
-                            if (connection.State == ConnectionState.Open)
-                            {
-                                connection.Close();
-                            }
-                        }
-                    }
-                }
-            }
-
+            ProcessDeletedRows();
         }
         catch (Exception ex)
         {
@@ -1009,6 +906,117 @@ else
         }
 
         ShowStatusDialog();
+    }
+    #endregion
+
+    #region void ProcessDeletedRows()
+    private void ProcessDeletedRows()
+    {
+        List<string> colSQLWhereColumns = new List<string>();
+
+        string WhereSQLColums = "";
+
+        // Step 1: Get all the _Id values from CurrentDataTable
+
+        // Get all the _Id values from CurrentDataTable that are not null
+        var NotNullTableColection = CurrentDataTable.AsEnumerable().Where(row => row.Field<object>("_Id") != null).ToList();
+
+        var currentIds = NotNullTableColection.AsEnumerable().Select(r => r.Field<int>("_Id")).ToList();
+
+        // Convert currentIds to long
+        List<long> longCurrentIds = currentIds.Select(x => (long)x).ToList();
+
+        // Step 2: Filter OriginalDataTable to get the rows that are not present in CurrentDataTable
+        var deletedRows = OriginalDataTable.AsEnumerable()
+                                           .Where(row => !longCurrentIds.Contains(row.Field<long>("_Id")));
+
+        // Loop through the deleted rows
+        foreach (var rowCur in deletedRows)
+        {
+            colSQLWhereColumns = new List<string>();
+
+            WhereSQLColums = "";
+
+            // Loop through the columns
+            // Start at 1 to skip the _Id column
+            for (int i = 1; i < TableColumns.Count; i++)
+            {
+                // Build a list of columns that have changed
+
+                // Get the column name
+                string columnName = TableColumns[i].ColumnName;
+
+                // Get the column type
+                string columnType = TableColumns[i].ColumnType;
+
+                // Get the column value
+                string columnValue = "";
+
+                if (rowCur[i] != DBNull.Value && rowCur[i] != null)
+                {
+                    columnValue = Convert.ToString(rowCur[i]);
+
+                    // Replace any single quotes with double single quotes
+                    columnValue = columnValue.Replace("'", "''");
+                }
+                else
+                {
+                    columnValue = "NULL";
+                }
+
+                // TO DO:
+                // For integers dont wrap in quotes
+                // For strings and dates wrap in quotes
+                // Trim based on column length
+
+                if (PrimaryKeys.Contains(columnName))
+                {
+                    // This is a primary key
+                    // Add to the Where clause list
+                    //colSQLWhereColumns
+
+                    if (columnType.Contains("int"))
+                    {
+                        colSQLWhereColumns.Add($"[{columnName}] = {columnValue}");
+                    }
+                    else
+                    {
+                        colSQLWhereColumns.Add($"[{columnName}] = '{columnValue}'");
+                    }
+                }
+            }
+
+            if (colSQLWhereColumns.Count > 0)
+            {
+                WhereSQLColums = string.Join(" AND ", colSQLWhereColumns.ToArray());
+
+                using (SqlConnection connection = new SqlConnection(DatabaseConnectionString))
+                {
+                    try
+                    {
+                        connection.Open();
+
+                        string sql = $"DELETE FROM {selectedTable} WHERE {WhereSQLColums}";
+
+                        using (SqlCommand command = new SqlCommand(sql, connection))
+                        {
+                            command.ExecuteNonQuery();
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        colGeneralErrors.Add($"Error on Row {rowCur} - {ex.GetBaseException().Message}");
+                    }
+                    finally
+                    {
+                        if (connection.State == ConnectionState.Open)
+                        {
+                            connection.Close();
+                        }
+                    }
+                }
+            }
+        }
     }
     #endregion
 

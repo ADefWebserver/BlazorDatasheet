@@ -184,6 +184,17 @@ else
     }
     #endregion
 
+    #region private void CellChaged(object sender, CellDataChangedEventArgs args)
+    private void CellChanged(object sender, CellDataChangedEventArgs args)
+    {
+        // Only add the row if one cell is changed
+        if ((args.Positions.Count() > 0) && (args.Positions.Count() < 2))
+        {
+            ColChangedRows.Add(Convert.ToInt32(args.Positions.FirstOrDefault().row));
+        }
+    }
+    #endregion
+
     #region StatusDialog
 
     private void ShowStatusDialog()
@@ -259,6 +270,10 @@ else
         StateHasChanged();
     }
     #endregion
+
+    // ********************************************************************************************************************
+    // Load Data
+    // ********************************************************************************************************************
 
     #region private void GetTablesInDatabase()
     private async Task GetTablesInDatabase()
@@ -539,18 +554,9 @@ else
     }
     #endregion
 
-    #region private void CellChaged(object sender, CellDataChangedEventArgs args)
-    private void CellChanged(object sender, CellDataChangedEventArgs args)
-    {
-        // Only add the row if one cell is changed
-        if ((args.Positions.Count() > 0) && (args.Positions.Count() < 2))
-        {
-            ColChangedRows.Add(Convert.ToInt32(args.Positions.FirstOrDefault().row));
-        }
-    }
-    #endregion
-
+    // ********************************************************************************************************************
     // Save Data
+    // ********************************************************************************************************************
 
     #region private void SaveData()
     private void SaveData()
@@ -1019,7 +1025,9 @@ else
     }
     #endregion
 
+    // ********************************************************************************************************************
     // Utility
+    // ********************************************************************************************************************
 
     #region public List<string> GetPrimaryKey(SqlConnection connection, string tableName)
     public List<string> GetPrimaryKey(SqlConnection connection, string tableName)
@@ -1178,7 +1186,9 @@ else
     }
     #endregion
 
+    // ********************************************************************************************************************
     // Validators
+    // ********************************************************************************************************************
 
     #region private class LengthValidator : IDataValidator
     private class LengthValidator : IDataValidator

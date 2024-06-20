@@ -842,69 +842,44 @@ else
     #region void ProcessDeletedRows()
     private void ProcessDeletedRows()
     {
-        List<string> colSQLWhereColumns = new List<string>();
-
-        string WhereSQLColums = "";
-
-        // Step 1: Get all the _Id values from CurrentDataTable
-
         // Get all the _Id values from CurrentDataTable that are not null
-        var NotNullTableColection = CurrentDataTable.AsEnumerable().Where(row => row.Field<object>("_Id") != null).ToList();
+        var NotNullTableColection =
+        CurrentDataTable.AsEnumerable()
+        .Where(row => row.Field<object>("_Id") != null)
+        .ToList();
 
-        var currentIds = NotNullTableColection.AsEnumerable().Select(r => r.Field<int>("_Id")).ToList();
+        // Get the _Id values from the CurrentDataTable
+        var currentIds =
+        NotNullTableColection.AsEnumerable()
+        .Select(r => r.Field<int>("_Id"))
+        .ToList();
 
         // Convert currentIds to long
-        List<long> longCurrentIds = currentIds.Select(x => (long)x).ToList();
+        List<long> longCurrentIds =
+        currentIds.Select(x => (long)x).ToList();
 
-        // Step 2: Filter OriginalDataTable to get the rows that are not present in CurrentDataTable
-        var deletedRows = OriginalDataTable.AsEnumerable()
-                                           .Where(row => !longCurrentIds.Contains(row.Field<long>("_Id")));
+        // Filter OriginalDataTable to get the rows 
+        // that are not present in CurrentDataTable
+        var deletedRows =
+        OriginalDataTable.AsEnumerable()
+        .Where(row => !longCurrentIds.Contains(row.Field<long>("_Id")));
 
         // Loop through the deleted rows
         foreach (var rowCur in deletedRows)
         {
-            colSQLWhereColumns = new List<string>();
+            var colSQLWhereColumns = new List<string>();
 
-            WhereSQLColums = "";
-
-            // Loop through the columns
-            // Start at 1 to skip the _Id column
+            // Loop through the columns, skipping the _Id column
             for (int i = 1; i < TableColumns.Count; i++)
             {
-                // Build a list of columns that have changed
-
-                // Get the column name
                 string columnName = TableColumns[i].ColumnName;
-
-                // Get the column type
                 string columnType = TableColumns[i].ColumnType;
-
-                // Get the column value
-                string columnValue = "";
-
-                if (rowCur[i] != DBNull.Value && rowCur[i] != null)
-                {
-                    columnValue = Convert.ToString(rowCur[i]);
-
-                    // Replace any single quotes with double single quotes
-                    columnValue = columnValue.Replace("'", "''");
-                }
-                else
-                {
-                    columnValue = "NULL";
-                }
-
-                // TO DO:
-                // For integers dont wrap in quotes
-                // For strings and dates wrap in quotes
-                // Trim based on column length
+                string columnValue = rowCur[i] != DBNull.Value && rowCur[i] != null
+                                     ? Convert.ToString(rowCur[i]).Replace("'", "''")
+                                     : "NULL";
 
                 if (PrimaryKeys.Contains(columnName))
                 {
-                    // This is a primary key
-                    // Add to the Where clause list
-                    //colSQLWhereColumns
-
                     if (columnType.Contains("int"))
                     {
                         colSQLWhereColumns.Add($"[{columnName}] = {columnValue}");
@@ -916,18 +891,16 @@ else
                 }
             }
 
-            if (colSQLWhereColumns.Count > 0)
+            if (colSQLWhereColumns.Any())
             {
-                WhereSQLColums = string.Join(" AND ", colSQLWhereColumns.ToArray());
+                string whereSQL = string.Join(" AND ", colSQLWhereColumns);
 
                 using (SqlConnection connection = new SqlConnection(DatabaseConnectionString))
                 {
                     try
                     {
                         connection.Open();
-
-                        string sql = $"DELETE FROM {selectedTable} WHERE {WhereSQLColums}";
-
+                        string sql = $"DELETE FROM {selectedTable} WHERE {whereSQL}";
                         using (SqlCommand command = new SqlCommand(sql, connection))
                         {
                             command.ExecuteNonQuery();
@@ -935,7 +908,9 @@ else
                     }
                     catch (Exception ex)
                     {
-                        colGeneralErrors.Add($"Error on Row {rowCur} - {ex.GetBaseException().Message}");
+                        colGeneralErrors.Add(
+                            $"Error on Row {rowCur} - {ex.GetBaseException().Message}"
+                        );
                     }
                     finally
                     {

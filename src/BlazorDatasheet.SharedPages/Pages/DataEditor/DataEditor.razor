@@ -665,6 +665,7 @@ else
 
             var colSQLUpdateColumns = new List<string>();
             var colSQLWhereColumns = new List<string>();
+            var parameters = new List<SqlParameter>();
 
             // Build SQL update and where clause lists
             for (int i = 1; i < TableColumns.Count; i++)
@@ -673,33 +674,17 @@ else
                 string columnType = TableColumns[i].ColumnType;
                 int columnLength = TableColumns[i].ColumnLength;
 
-                string columnValue =
-                rowCur[i] != DBNull.Value
-                ? Convert.ToString(rowCur[i]).Replace("'", "''")
-                : "NULL";
+                object columnValue = rowCur[i] != DBNull.Value ? rowCur[i] : DBNull.Value;
 
                 if (PrimaryKeys.Contains(columnName))
                 {
-                    colSQLWhereColumns.Add(
-                        columnType.Contains("int")
-                        ? $"[{columnName}] = {columnValue}"
-                        : $"[{columnName}] = '{columnValue}'"
-                        );
+                    colSQLWhereColumns.Add($"[{columnName}] = @{columnName}_where");
+                    parameters.Add(new SqlParameter($"@{columnName}_where", columnValue));
                 }
                 else
                 {
-                    if (columnType.Contains("int"))
-                    {
-                        colSQLUpdateColumns.Add($"[{columnName}] = {columnValue}");
-                    }
-                    else
-                    {
-                        colSQLUpdateColumns.Add(
-                            columnLength > 0
-                            ? $"[{columnName}] = LEFT('{columnValue}',{columnLength})"
-                            : $"[{columnName}] = '{columnValue}'"
-                        );
-                    }
+                    colSQLUpdateColumns.Add($"[{columnName}] = @{columnName}");
+                    parameters.Add(new SqlParameter($"@{columnName}", columnValue));
                 }
             }
 
@@ -717,6 +702,7 @@ else
 
                         using (SqlCommand command = new SqlCommand(sql, connection))
                         {
+                            command.Parameters.AddRange(parameters.ToArray());
                             command.ExecuteNonQuery();
                         }
                     }
@@ -741,10 +727,9 @@ else
     private void ProcessInsertedRows()
     {
         // Find Added Rows
-        var addedRows =
-        CurrentDataTable.AsEnumerable()
-        .Where(row => row.Field<object>("_Id") == null)
-        .ToList();
+        var addedRows = CurrentDataTable.AsEnumerable()
+            .Where(row => row.Field<object>("_Id") == null)
+            .ToList();
 
         // Get the identity columns
         List<string> colIdentityColumns = new List<string>();
@@ -753,8 +738,8 @@ else
         {
             try
             {
-                colIdentityColumns =
-                GetIdentityColumns(connection, selectedTable);
+                connection.Open();
+                colIdentityColumns = GetIdentityColumns(connection, selectedTable);
             }
             finally
             {
@@ -769,7 +754,7 @@ else
         foreach (var rowCur in addedRows)
         {
             var colSQLUpdateColumns = new List<string>();
-            var colUpdateSQLValues = new List<string>();
+            var parameters = new List<SqlParameter>();
 
             // Loop through the columns, skipping the _Id column
             for (int i = 1; i < TableColumns.Count; i++)
@@ -782,35 +767,16 @@ else
 
                     colSQLUpdateColumns.Add($"[{columnName}]");
 
-                    string columnValue =
-                    rowCur[i] != DBNull.Value && rowCur[i] != null
-                    ? Convert.ToString(rowCur[i]).Replace("'", "''")
-                    : "";
+                    object columnValue = rowCur[i] != DBNull.Value && rowCur[i] != null ? rowCur[i] : DBNull.Value;
 
-                    if (columnType.Contains("int"))
-                    {
-                        colUpdateSQLValues.Add($"{columnValue}");
-                    }
-                    else
-                    {
-                        if (columnLength > 0)
-                        {
-                            colUpdateSQLValues.Add(
-                                $"LEFT('{columnValue}',{columnLength})");
-                        }
-                        else
-                        {
-                            colUpdateSQLValues.Add(
-                                $"'{columnValue}'");
-                        }
-                    }
+                    parameters.Add(new SqlParameter($"@{columnName}", columnValue));
                 }
             }
 
             if (colSQLUpdateColumns.Any())
             {
                 string updateSQLColumns = string.Join(",", colSQLUpdateColumns);
-                string updateSQLValues = string.Join(",", colUpdateSQLValues);
+                string parameterNames = string.Join(",", parameters.Select(p => p.ParameterName));
 
                 using (SqlConnection connection = new SqlConnection(DatabaseConnectionString))
                 {
@@ -818,11 +784,11 @@ else
                     {
                         connection.Open();
 
-                        string sql =
-                        $"INSERT INTO {selectedTable} ({updateSQLColumns}) VALUES ({updateSQLValues})";
+                        string sql = $"INSERT INTO {selectedTable} ({updateSQLColumns}) VALUES ({parameterNames})";
 
                         using (SqlCommand command = new SqlCommand(sql, connection))
                         {
+                            command.Parameters.AddRange(parameters.ToArray());
                             command.ExecuteNonQuery();
                         }
                     }
@@ -849,51 +815,43 @@ else
     private void ProcessDeletedRows()
     {
         // Get all the _Id values from CurrentDataTable that are not null
-        var NotNullTableColection =
-        CurrentDataTable.AsEnumerable()
-        .Where(row => row.Field<object>("_Id") != null)
-        .ToList();
+        var NotNullTableCollection = CurrentDataTable.AsEnumerable()
+            .Where(row => row.Field<object>("_Id") != null)
+            .ToList();
 
         // Get the _Id values from the CurrentDataTable
-        var currentIds =
-        NotNullTableColection.AsEnumerable()
-        .Select(r => r.Field<int>("_Id"))
-        .ToList();
+        var currentIds = NotNullTableCollection.AsEnumerable()
+            .Select(r => r.Field<int>("_Id"))
+            .ToList();
 
         // Convert currentIds to long
-        List<long> longCurrentIds =
-        currentIds.Select(x => (long)x).ToList();
+        List<long> longCurrentIds = currentIds.Select(x => (long)x).ToList();
 
         // Filter OriginalDataTable to get the rows
         // that are not present in CurrentDataTable
-        var deletedRows =
-        OriginalDataTable.AsEnumerable()
-        .Where(row => !longCurrentIds.Contains(row.Field<long>("_Id")));
+        var deletedRows = OriginalDataTable.AsEnumerable()
+            .Where(row => !longCurrentIds.Contains(row.Field<long>("_Id")));
 
         // Loop through the deleted rows
         foreach (var rowCur in deletedRows)
         {
             var colSQLWhereColumns = new List<string>();
+            var parameters = new List<SqlParameter>();
 
             // Loop through the columns, skipping the _Id column
             for (int i = 1; i < TableColumns.Count; i++)
             {
                 string columnName = TableColumns[i].ColumnName;
                 string columnType = TableColumns[i].ColumnType;
-                string columnValue = rowCur[i] != DBNull.Value && rowCur[i] != null
-                                     ? Convert.ToString(rowCur[i]).Replace("'", "''")
-                                     : "NULL";
+
+                object columnValue = rowCur[i] != DBNull.Value && rowCur[i] != null
+                                     ? rowCur[i]
+                                     : DBNull.Value;
 
                 if (PrimaryKeys.Contains(columnName))
                 {
-                    if (columnType.Contains("int"))
-                    {
-                        colSQLWhereColumns.Add($"[{columnName}] = {columnValue}");
-                    }
-                    else
-                    {
-                        colSQLWhereColumns.Add($"[{columnName}] = '{columnValue}'");
-                    }
+                    colSQLWhereColumns.Add($"[{columnName}] = @{columnName}");
+                    parameters.Add(new SqlParameter($"@{columnName}", columnValue));
                 }
             }
 
@@ -911,6 +869,7 @@ else
 
                         using (SqlCommand command = new SqlCommand(sql, connection))
                         {
+                            command.Parameters.AddRange(parameters.ToArray());
                             command.ExecuteNonQuery();
                         }
                     }

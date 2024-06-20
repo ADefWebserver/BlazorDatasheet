@@ -674,17 +674,20 @@ else
                 string columnType = TableColumns[i].ColumnType;
                 int columnLength = TableColumns[i].ColumnLength;
 
+                // Sanitize parameter name
+                string paramName = columnName.Replace(" ", "_");
+
                 object columnValue = rowCur[i] != DBNull.Value ? rowCur[i] : DBNull.Value;
 
                 if (PrimaryKeys.Contains(columnName))
                 {
-                    colSQLWhereColumns.Add($"[{columnName}] = @{columnName}_where");
-                    parameters.Add(new SqlParameter($"@{columnName}_where", columnValue));
+                    colSQLWhereColumns.Add($"[{columnName}] = @{paramName}_where");
+                    parameters.Add(new SqlParameter($"@{paramName}_where", columnValue));
                 }
                 else
                 {
-                    colSQLUpdateColumns.Add($"[{columnName}] = @{columnName}");
-                    parameters.Add(new SqlParameter($"@{columnName}", columnValue));
+                    colSQLUpdateColumns.Add($"[{columnName}] = @{paramName}");
+                    parameters.Add(new SqlParameter($"@{paramName}", columnValue));
                 }
             }
 
@@ -762,14 +765,15 @@ else
                 if (!colIdentityColumns.Contains(TableColumns[i].ColumnName))
                 {
                     string columnName = TableColumns[i].ColumnName;
-                    string columnType = TableColumns[i].ColumnType;
-                    int columnLength = TableColumns[i].ColumnLength;
+
+                    // Sanitize parameter name
+                    string paramName = columnName.Replace(" ", "_");
 
                     colSQLUpdateColumns.Add($"[{columnName}]");
 
                     object columnValue = rowCur[i] != DBNull.Value && rowCur[i] != null ? rowCur[i] : DBNull.Value;
 
-                    parameters.Add(new SqlParameter($"@{columnName}", columnValue));
+                    parameters.Add(new SqlParameter($"@{paramName}", columnValue));
                 }
             }
 
@@ -794,9 +798,7 @@ else
                     }
                     catch (Exception ex)
                     {
-                        colGeneralErrors.Add(
-                            $"Error on Row {rowCur} - {ex.GetBaseException().Message}"
-                        );
+                        colGeneralErrors.Add($"Error on Row {rowCur} - {ex.GetBaseException().Message}");
                     }
                     finally
                     {
@@ -844,14 +846,17 @@ else
                 string columnName = TableColumns[i].ColumnName;
                 string columnType = TableColumns[i].ColumnType;
 
+                // Sanitize parameter name
+                string paramName = columnName.Replace(" ", "_");
+
                 object columnValue = rowCur[i] != DBNull.Value && rowCur[i] != null
                                      ? rowCur[i]
                                      : DBNull.Value;
 
                 if (PrimaryKeys.Contains(columnName))
                 {
-                    colSQLWhereColumns.Add($"[{columnName}] = @{columnName}");
-                    parameters.Add(new SqlParameter($"@{columnName}", columnValue));
+                    colSQLWhereColumns.Add($"[{columnName}] = @{paramName}");
+                    parameters.Add(new SqlParameter($"@{paramName}", columnValue));
                 }
             }
 
@@ -875,9 +880,7 @@ else
                     }
                     catch (Exception ex)
                     {
-                        colGeneralErrors.Add(
-                            $"Error on Row {rowCur} - {ex.GetBaseException().Message}"
-                        );
+                        colGeneralErrors.Add($"Error on Row {rowCur} - {ex.GetBaseException().Message}");
                     }
                     finally
                     {

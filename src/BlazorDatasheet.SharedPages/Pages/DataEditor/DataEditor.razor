@@ -651,140 +651,80 @@ else
     #region void ProcessUpdatedRows()
     private void ProcessUpdatedRows()
     {
-        List<string> colSQLUpdateColumns = new List<string>();
-        List<string> ColUpdateSQLValues = new List<string>();
-        List<string> colSQLWhereColumns = new List<string>();
-
-        string UpdateSQLColums = "";
-        string WhereSQLColums = "";
-
-        // Get a distict list of ColChangedRows
+        // Remove duplicate changed rows
         ColChangedRows = ColChangedRows.Distinct().ToList();
 
-        // If there are changed rows
-        if (ColChangedRows.Count() > 0)
+        // Process each changed row
+        foreach (int row in ColChangedRows)
         {
-            // Loop through the changed rows
-            foreach (int row in ColChangedRows)
+            DataRow rowCur = CurrentDataTable.Rows[row];
+
+            // Skip rows where _Id column is 0 or null
+            if (rowCur[0] == DBNull.Value || rowCur[0] == null)
+                continue;
+
+            var colSQLUpdateColumns = new List<string>();
+            var colSQLWhereColumns = new List<string>();
+
+            // Build SQL update and where clause lists
+            for (int i = 1; i < TableColumns.Count; i++)
             {
-                colSQLUpdateColumns = new List<string>();
-                colSQLWhereColumns = new List<string>();
+                string columnName = TableColumns[i].ColumnName;
+                string columnType = TableColumns[i].ColumnType;
+                int columnLength = TableColumns[i].ColumnLength;
 
-                UpdateSQLColums = "";
-                WhereSQLColums = "";
+                string columnValue = 
+                rowCur[i] != DBNull.Value 
+                ? Convert.ToString(rowCur[i]).Replace("'", "''") 
+                : "NULL";
 
-                // Get the row based on the number
-                DataRow rowCur = CurrentDataTable.Rows[(row)];
-
-                // Don't try to update if the _Id column = 0
-                if (rowCur[0] != DBNull.Value)
+                if (PrimaryKeys.Contains(columnName))
                 {
-                    // Loop through the columns
-                    // Start at 1 to skip the _Id column
-                    for (int i = 1; i < TableColumns.Count; i++)
+                    colSQLWhereColumns.Add(
+                        columnType.Contains("int") 
+                        ? $"[{columnName}] = {columnValue}" 
+                        : $"[{columnName}] = '{columnValue}'"
+                        );
+                }
+                else
+                {
+                    if (columnType.Contains("int"))
                     {
-                        // Build a list of columns that have changed
+                        colSQLUpdateColumns.Add($"[{columnName}] = {columnValue}");
+                    }
+                    else
+                    {
+                        colSQLUpdateColumns.Add(
+                            columnLength > 0 
+                            ? $"[{columnName}] = LEFT('{columnValue}',{columnLength})" 
+                            : $"[{columnName}] = '{columnValue}'"
+                        );
+                    }
+                }
+            }
 
-                        // Get the column name
-                        string columnName = TableColumns[i].ColumnName;
+            if (colSQLUpdateColumns.Any())
+            {
+                string updateSQL = string.Join(",", colSQLUpdateColumns);
+                string whereSQL = string.Join(" AND ", colSQLWhereColumns);
 
-                        // Get the column type
-                        string columnType = TableColumns[i].ColumnType;
+                try
+                {
+                    using (SqlConnection connection = new SqlConnection(DatabaseConnectionString))
+                    {
+                        connection.Open();
 
-                        // Get the column length
-                        int columnLength = TableColumns[i].ColumnLength;
+                        string sql = $"UPDATE {selectedTable} SET {updateSQL} WHERE {whereSQL}";
 
-                        // Get the column value
-                        string columnValue = "";
-
-                        if (rowCur[i] != DBNull.Value && rowCur[i] != null)
+                        using (SqlCommand command = new SqlCommand(sql, connection))
                         {
-                            columnValue = Convert.ToString(rowCur[i]);
-
-                            // Replace any single quotes with double single quotes
-                            columnValue = columnValue.Replace("'", "''");
-                        }
-                        else
-                        {
-                            columnValue = "NULL";
-                        }
-
-                        // TO DO:
-                        // For integers dont wrap in quotes
-                        // For strings and dates wrap in quotes
-                        // Trim based on column length
-
-                        if (PrimaryKeys.Contains(columnName))
-                        {
-                            // This is a primary key
-                            // Add to the Where clause list
-                            //colSQLWhereColumns
-
-                            if (columnType.Contains("int"))
-                            {
-                                colSQLWhereColumns.Add($"[{columnName}] = {columnValue}");
-                            }
-                            else
-                            {
-                                colSQLWhereColumns.Add($"[{columnName}] = '{columnValue}'");
-                            }
-                        }
-                        else
-                        {
-                            // This is not a primary key
-                            // Add to the list of columns to update
-
-                            if (columnType.Contains("int"))
-                            {
-                                colSQLUpdateColumns.Add($"[{columnName}] = {columnValue}");
-                            }
-                            else
-                            {
-                                // Trim the column value based on the column length
-                                if (columnLength > 0)
-                                {
-                                    colSQLUpdateColumns.Add($"[{columnName}] = LEFT('{columnValue}',{columnLength})");
-                                }
-                                else
-                                {
-                                    // Do not add the LEFT function
-                                    colSQLUpdateColumns.Add($"[{columnName}] = '{columnValue}'");
-                                }
-                            }
+                            command.ExecuteNonQuery();
                         }
                     }
-
-                    if (colSQLUpdateColumns.Count > 0)
-                    {
-                        UpdateSQLColums = string.Join(",", colSQLUpdateColumns.ToArray());
-                        WhereSQLColums = string.Join(" AND ", colSQLWhereColumns.ToArray());
-
-                        using (SqlConnection connection = new SqlConnection(DatabaseConnectionString))
-                        {
-                            try
-                            {
-                                connection.Open();
-
-                                string sql = $"UPDATE {selectedTable} SET {UpdateSQLColums} WHERE {WhereSQLColums}";
-
-                                using (SqlCommand command = new SqlCommand(sql, connection))
-                                {
-                                    command.ExecuteNonQuery();
-                                }
-                            }
-                            catch (Exception ex)
-                            {
-                                colGeneralErrors.Add($"Error on Row {row} - {ex.GetBaseException().Message}");
-                            }
-                            finally
-                            {
-                                if (connection.State == ConnectionState.Open)
-                                {
-                                    connection.Close();
-                                }
-                            }
-                        }
-                    }
+                }
+                catch (Exception ex)
+                {
+                    colGeneralErrors.Add($"Error on Row {row} - {ex.GetBaseException().Message}");
                 }
             }
         }

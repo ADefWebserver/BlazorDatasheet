@@ -707,10 +707,9 @@ else
             {
                 string updateSQL = string.Join(",", colSQLUpdateColumns);
                 string whereSQL = string.Join(" AND ", colSQLWhereColumns);
-
-                try
+                using (SqlConnection connection = new SqlConnection(DatabaseConnectionString))
                 {
-                    using (SqlConnection connection = new SqlConnection(DatabaseConnectionString))
+                    try
                     {
                         connection.Open();
 
@@ -721,10 +720,17 @@ else
                             command.ExecuteNonQuery();
                         }
                     }
-                }
-                catch (Exception ex)
-                {
-                    colGeneralErrors.Add($"Error on Row {row} - {ex.GetBaseException().Message}");
+                    catch (Exception ex)
+                    {
+                        colGeneralErrors.Add($"Error on Row {row} - {ex.GetBaseException().Message}");
+                    }
+                    finally
+                    {
+                        if (connection.State == ConnectionState.Open)
+                        {
+                            connection.Close();
+                        }
+                    }
                 }
             }
         }
@@ -858,7 +864,7 @@ else
         List<long> longCurrentIds =
         currentIds.Select(x => (long)x).ToList();
 
-        // Filter OriginalDataTable to get the rows 
+        // Filter OriginalDataTable to get the rows
         // that are not present in CurrentDataTable
         var deletedRows =
         OriginalDataTable.AsEnumerable()
@@ -900,7 +906,9 @@ else
                     try
                     {
                         connection.Open();
+
                         string sql = $"DELETE FROM {selectedTable} WHERE {whereSQL}";
+
                         using (SqlCommand command = new SqlCommand(sql, connection))
                         {
                             command.ExecuteNonQuery();

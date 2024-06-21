@@ -503,7 +503,7 @@ else
             i = 0;
             foreach (DTODatabaseColumn objDatabaseColumn in paramDatabaseColumns)
             {
-                sheet.Cells[ii, i].Value = dataRow[i].ToString();
+                sheet.Cells[ii, i].Value = GetCellValue(dataRow[i].ToString(), objDatabaseColumn.ColumnType);
                 sheet.Cells[ii, i].Type = GetCellValueType(objDatabaseColumn.ColumnType);
 
                 if (objDatabaseColumn.IsPrimaryKey)
@@ -688,7 +688,7 @@ else
 
                     SqlParameter objSqlParameter = new SqlParameter();
                     objSqlParameter.ParameterName = $"@{paramName}_where";
-                    objSqlParameter.Value = GetColumnValue(columnValue, columnType);
+                    objSqlParameter.Value = GetCellValue(columnValue, columnType);
                     objSqlParameter.SqlDbType = GetSQLParameterType(columnType);
 
                     parameters.Add(objSqlParameter);
@@ -699,7 +699,7 @@ else
 
                     SqlParameter objSqlParameter = new SqlParameter();
                     objSqlParameter.ParameterName = $"@{paramName}";
-                    objSqlParameter.Value = GetColumnValue(columnValue, columnType);
+                    objSqlParameter.Value = GetCellValue(columnValue, columnType);
                     objSqlParameter.SqlDbType = GetSQLParameterType(columnType);
 
                     parameters.Add(objSqlParameter);
@@ -1081,8 +1081,8 @@ else
     }
     #endregion
 
-    #region private object GetColumnValue(object columnValue, string columnType)
-    private object GetColumnValue(object columnValue, string columnType)
+    #region private object GetCellValue(object columnValue, string columnType)
+    private object GetCellValue(object columnValue, string columnType)
     {
         try
         {

@@ -393,6 +393,9 @@ else
                 // Remove from TableColumns any colums types of varbinary
                 TableColumns = TableColumns.Where(x => x.ColumnType != "varbinary").ToList();
 
+                // Remove from TableColumns any colums types of geography
+                TableColumns = TableColumns.Where(x => x.ColumnType != "geography").ToList();
+
                 // Remove from TableColumns any colums types of computed
                 // remove colums conatined in the ComputedColumns list
                 TableColumns = TableColumns.Where(x => !ComputedColumns.Contains(x.ColumnName)).ToList();

@@ -982,8 +982,6 @@ else
 
             using (SqlCommand command = new SqlCommand(query, connection))
             {
-                connection.Open();
-
                 using (SqlDataReader reader = command.ExecuteReader())
                 {
                     while (reader.Read())

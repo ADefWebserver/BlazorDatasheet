@@ -98,7 +98,7 @@ else
 }
 
 @code {
-#nullable disable
+    #nullable disable
 
     private Datasheet _datasheet;
     private Sheet sheet;
@@ -504,7 +504,7 @@ else
             foreach (DTODatabaseColumn objDatabaseColumn in paramDatabaseColumns)
             {
                 sheet.Cells[ii, i].Value = dataRow[i].ToString();
-                sheet.Cells[ii, i].Type = objDatabaseColumn.ColumnType;
+                sheet.Cells[ii, i].Type = GetCellValueType(objDatabaseColumn.ColumnType);
 
                 if (objDatabaseColumn.IsPrimaryKey)
                 {
@@ -688,9 +688,9 @@ else
 
                     SqlParameter objSqlParameter = new SqlParameter();
                     objSqlParameter.ParameterName = $"@{paramName}_where";
-                    objSqlParameter.Value = columnValue;
+                    objSqlParameter.Value = GetColumnValue(columnValue, columnType);
                     objSqlParameter.SqlDbType = GetSQLParameterType(columnType);
-                    
+
                     parameters.Add(objSqlParameter);
                 }
                 else
@@ -699,7 +699,7 @@ else
 
                     SqlParameter objSqlParameter = new SqlParameter();
                     objSqlParameter.ParameterName = $"@{paramName}";
-                    objSqlParameter.Value = columnValue;
+                    objSqlParameter.Value = GetColumnValue(columnValue, columnType);
                     objSqlParameter.SqlDbType = GetSQLParameterType(columnType);
 
                     parameters.Add(objSqlParameter);
@@ -1078,6 +1078,82 @@ else
         }
 
         return input;
+    }
+    #endregion
+
+    #region private object GetColumnValue(object columnValue, string columnType)
+    private object GetColumnValue(object columnValue, string columnType)
+    {
+        try
+        {
+            if (columnType.Contains("int"))
+            {
+                if (columnValue == DBNull.Value)
+                {
+                    return DBNull.Value;
+                }
+                else
+                {
+                    return Convert.ToInt32(columnValue);
+                }
+            }
+
+            if (columnType.Contains("char"))
+            {
+                if (columnValue == DBNull.Value)
+                {
+                    return DBNull.Value;
+                }
+                else
+                {
+                    return columnValue.ToString();
+                }
+            }
+
+            if (columnType.StartsWith("time"))
+            {
+                if (columnValue == DBNull.Value)
+                {
+                    return DBNull.Value;
+                }
+                else
+                {
+                    return TimeSpan.Parse(columnValue.ToString());
+                }
+            }
+
+            if (columnType.Contains("date"))
+            {
+                if (columnValue == DBNull.Value)
+                {
+                    return DBNull.Value;
+                }
+                else
+                {
+                    return Convert.ToDateTime(columnValue);
+                }
+            }
+        }
+        catch
+        {
+            return columnValue;
+        }
+
+        return columnValue;
+    }
+    #endregion
+
+    #region private string GetCellValueType(string columnType)
+    private string GetCellValueType(string columnType)
+    {
+        string cellValueType = columnType;
+
+        if (columnType.StartsWith("time"))
+        {
+            cellValueType = "nvarchar";
+        }
+
+        return cellValueType;
     }
     #endregion
 

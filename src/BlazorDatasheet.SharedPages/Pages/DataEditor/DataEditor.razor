@@ -680,17 +680,29 @@ else
                 // Sanitize parameter name
                 string paramName = columnName.Replace(" ", "_");
 
-                object columnValue = rowCur[i] != DBNull.Value ? rowCur[i] : DBNull.Value;
+                object columnValue = rowCur[i] != DBNull.Value ? rowCur[i] : DBNull.Value;                
 
                 if (PrimaryKeys.Contains(columnName))
                 {
                     colSQLWhereColumns.Add($"[{columnName}] = @{paramName}_where");
-                    parameters.Add(new SqlParameter($"@{paramName}_where", columnValue));
+
+                    SqlParameter objSqlParameter = new SqlParameter();
+                    objSqlParameter.ParameterName = $"@{paramName}_where";
+                    objSqlParameter.Value = columnValue;
+                    objSqlParameter.SqlDbType = GetSQLParameterType(columnType);
+                    
+                    parameters.Add(objSqlParameter);
                 }
                 else
                 {
                     colSQLUpdateColumns.Add($"[{columnName}] = @{paramName}");
-                    parameters.Add(new SqlParameter($"@{paramName}", columnValue));
+
+                    SqlParameter objSqlParameter = new SqlParameter();
+                    objSqlParameter.ParameterName = $"@{paramName}";
+                    objSqlParameter.Value = columnValue;
+                    objSqlParameter.SqlDbType = GetSQLParameterType(columnType);
+
+                    parameters.Add(objSqlParameter);
                 }
             }
 
@@ -768,6 +780,7 @@ else
                 if (!colIdentityColumns.Contains(TableColumns[i].ColumnName))
                 {
                     string columnName = TableColumns[i].ColumnName;
+                    string columnType = TableColumns[i].ColumnType;
 
                     // Sanitize parameter name
                     string paramName = columnName.Replace(" ", "_");
@@ -776,7 +789,12 @@ else
 
                     object columnValue = rowCur[i] != DBNull.Value && rowCur[i] != null ? rowCur[i] : DBNull.Value;
 
-                    parameters.Add(new SqlParameter($"@{paramName}", columnValue));
+                    SqlParameter objSqlParameter = new SqlParameter();
+                    objSqlParameter.ParameterName = $"@{paramName}";
+                    objSqlParameter.Value = columnValue;
+                    objSqlParameter.SqlDbType = GetSQLParameterType(columnType);
+
+                    parameters.Add(objSqlParameter);
                 }
             }
 
@@ -859,7 +877,13 @@ else
                 if (PrimaryKeys.Contains(columnName))
                 {
                     colSQLWhereColumns.Add($"[{columnName}] = @{paramName}");
-                    parameters.Add(new SqlParameter($"@{paramName}", columnValue));
+
+                    SqlParameter objSqlParameter = new SqlParameter();
+                    objSqlParameter.ParameterName = $"@{paramName}";
+                    objSqlParameter.Value = columnValue;
+                    objSqlParameter.SqlDbType = GetSQLParameterType(columnType);
+
+                    parameters.Add(objSqlParameter);
                 }
             }
 
@@ -1054,6 +1078,35 @@ else
         }
 
         return input;
+    }
+    #endregion
+
+    #region private SqlDbType GetSQLParameterType(string columnType)
+    private SqlDbType GetSQLParameterType(string columnType)
+    {
+        SqlDbType sqlDbType = SqlDbType.NVarChar;
+
+        if (columnType.Contains("int"))
+        {
+            sqlDbType = SqlDbType.Int;
+        }
+
+        if (columnType.Contains("char"))
+        {
+            sqlDbType = SqlDbType.NVarChar;
+        }
+
+        if (columnType.Contains("time"))
+        {
+            sqlDbType = SqlDbType.Time;
+        }
+
+        if (columnType.Contains("date"))
+        {
+            sqlDbType = SqlDbType.DateTime;
+        }
+
+        return sqlDbType;
     }
     #endregion
 

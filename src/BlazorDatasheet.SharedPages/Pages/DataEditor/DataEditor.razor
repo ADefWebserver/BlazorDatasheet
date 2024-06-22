@@ -487,6 +487,7 @@ else
         foreach (DTODatabaseColumn objDatabaseColumn in paramDatabaseColumns)
         {
             sheet.Columns.SetHeadings(i, i, objDatabaseColumn.ColumnName);
+            sheet.Cells.SetType(new ColumnRegion(i), objDatabaseColumn.ColumnType);
 
             if (UseValidation)
             {
@@ -516,7 +517,6 @@ else
             foreach (DTODatabaseColumn objDatabaseColumn in paramDatabaseColumns)
             {
                 sheet.Cells[ii, i].Value = GetCellValue(dataRow[i].ToString(), objDatabaseColumn.ColumnType);
-                sheet.Cells[ii, i].Type = objDatabaseColumn.ColumnType;
 
                 if (objDatabaseColumn.IsPrimaryKey)
                 {

@@ -1,0 +1,21 @@
+@inherits BlazorDatasheet.Render.BaseRenderer
+
+<span>@CurrentTime</span>
+
+@code {
+
+    private string? CurrentTime
+    {
+        get
+        {
+            if (Cell.Value is DateTime dateTime)
+            {
+                return dateTime.TimeOfDay.ToString();
+            }
+            else
+            {
+                return Cell.Value?.ToString();
+            }
+        }
+    }
+}

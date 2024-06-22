@@ -10,10 +10,20 @@
         {
             if (Cell.Value is DateTime dateTime)
             {
-                return dateTime.TimeOfDay.ToString();
+                return dateTime.ToLongTimeString();
             }
             else
-            {
+            {               
+                if (Cell.Value is TimeSpan timeSpan)
+                {
+                    DateTime CurrentDateTime = DateTime.Now.Date; // This gets the date part with time set to 00:00:00
+
+                    // Combine DateTime and timeSpan to get a complete DateTime
+                    CurrentDateTime = CurrentDateTime.AddHours(timeSpan.Hours).AddMinutes(timeSpan.Minutes).AddSeconds(timeSpan.Seconds);
+
+                    return CurrentDateTime.ToLongTimeString();
+                }
+
                 return Cell.Value?.ToString();
             }
         }

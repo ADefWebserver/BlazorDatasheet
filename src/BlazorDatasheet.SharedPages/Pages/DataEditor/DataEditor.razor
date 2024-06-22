@@ -13,6 +13,7 @@
 
 @using ADefWebserverDataEditor
 
+@using BlazorDatasheet.SharedPages.Pages.DataEditor.CustomRenderer
 @using Microsoft.Data.SqlClient
 @using System.Text;
 @using System.Data
@@ -85,8 +86,10 @@ else
 {
     <div style="overflow: scroll; width: 800px; height: 400px;">
 
+        <!-- CustomCellTypeDefinitions is for the TimeEditorComponent and TimeRenderer -->
+
         <Datasheet @ref="_datasheet"
-                   CustomCellTypeDefinitions="CustomTypes"
+                   CustomCellTypeDefinitions="CustomTypes" 
                    Sheet="sheet"
                    CanUserMergeRows="false"
                    ShowColHeadings="true"
@@ -128,11 +131,15 @@ else
     private bool showPrimaryKeyWarningDialog { get; set; } = false;
     private bool showStatusDialog { get; set; } = false;
 
+    // For the TimeEditorComponent and TimeRenderer
     private Dictionary<string, CellTypeDefinition> CustomTypes { get; } = new();
 
     protected override async Task OnInitializedAsync()
     {
+        // For the TimeEditorComponent and TimeRenderer
         CustomTypes.Add("time", CellTypeDefinition.Create<TimeEditorComponent, TimeRenderer>());
+
+        // Create a new datasheet
         sheet = new Sheet(numRows: 100000, numCols: 20000);
 
         await base.OnInitializedAsync();
@@ -509,9 +516,7 @@ else
             foreach (DTODatabaseColumn objDatabaseColumn in paramDatabaseColumns)
             {
                 sheet.Cells[ii, i].Value = GetCellValue(dataRow[i].ToString(), objDatabaseColumn.ColumnType);
-                //sheet.Cells[ii, i].Type = GetCellValueType(objDatabaseColumn.ColumnType);
-
-                sheet.Cells.SetType(ii, i, GetCellValueType(objDatabaseColumn.ColumnType));
+                sheet.Cells[ii, i].Type = objDatabaseColumn.ColumnType;
 
                 if (objDatabaseColumn.IsPrimaryKey)
                 {
@@ -1147,20 +1152,6 @@ else
         }
 
         return columnValue;
-    }
-    #endregion
-
-    #region private string GetCellValueType(string columnType)
-    private string GetCellValueType(string columnType)
-    {
-        string cellValueType = columnType;
-
-        if (columnType.StartsWith("time"))
-        {
-            cellValueType = "time";
-        }
-
-        return cellValueType;
     }
     #endregion
 

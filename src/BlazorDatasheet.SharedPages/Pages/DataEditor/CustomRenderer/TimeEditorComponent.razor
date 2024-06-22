@@ -1,0 +1,85 @@
+@using BlazorDatasheet.Edit
+@using BlazorDatasheet.Util
+@using BlazorDatasheet.Core.Interfaces
+@using BlazorDatasheet.Core.Data
+@using BlazorDatasheet.Core.Edit
+@inherits BaseEditor
+
+<input type="time"
+       class="date-input"
+       @bind="currentDateTimeProperty"
+       @bind:event="oninput"
+       style="@Style; width: 100%;"
+       @ref="InputRef" />
+
+@code {
+
+    private IReadOnlyCell Cell { get; set; }
+
+    private TimeOnly? currentTime;
+
+    public TimeOnly? CurrentTime
+    {
+        get => currentTime;
+        set
+        {
+            if (currentTime != value)
+            {
+                currentTime = value;
+
+                // Set currentDateTime
+
+                DateTime dateTime = DateTime.Now.Date; // This gets the date part with time set to 00:00:00
+
+                if (currentTime.HasValue)
+                {
+                    // Combine DateTime and TimeOnly to get a complete DateTime
+                    currentDateTime = dateTime.AddHours(currentTime.Value.Hour).AddMinutes(currentTime.Value.Minute).AddSeconds(currentTime.Value.Second);
+                }
+            }
+        }
+    }
+
+    private DateTime currentDateTime;
+
+    public DateTime currentDateTimeProperty
+    {
+        get => currentDateTime;
+        set
+        {
+            if (currentDateTime != value)
+            {
+                currentDateTime = value;
+                if (TimeOnly.TryParse(currentDateTime.ToShortTimeString(), out var timeOnly))
+                {
+                    currentTime = timeOnly;
+                }
+                else
+                {
+                    currentTime = null;
+                }
+            }
+
+            this.OnValueChanged.InvokeAsync(value.TimeOfDay.ToString());
+        }
+    }
+
+    public override void BeforeEdit(IReadOnlyCell cell, Sheet sheet)
+    {
+        Cell = cell;
+    }
+
+    public override void BeginEdit(EditEntryMode entryMode, string? editValue, string key)
+    {
+        /*var canParse = DateTime.TryParse(editValue?.ToString(), out var parsedDateTime);
+            if (canParse)
+            {
+                CurrentDateTime = parsedDateTime;
+            }
+            else
+            {
+                CurrentDateTime = DateTime.Now;
+            }*/
+    }
+
+}

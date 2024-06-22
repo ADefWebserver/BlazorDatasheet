@@ -28,13 +28,16 @@
                 currentTime = value;
 
                 // Set currentDateTime
-
-                DateTime dateTime = DateTime.Now.Date; // This gets the date part with time set to 00:00:00
+                // This gets the date part with time set to 00:00:00
+                DateTime dateTime = DateTime.Now.Date;
 
                 if (currentTime.HasValue)
                 {
                     // Combine DateTime and TimeOnly to get a complete DateTime
-                    currentDateTime = dateTime.AddHours(currentTime.Value.Hour).AddMinutes(currentTime.Value.Minute).AddSeconds(currentTime.Value.Second);
+                    currentDateTime = dateTime
+                    .AddHours(currentTime.Value.Hour)
+                    .AddMinutes(currentTime.Value.Minute)
+                    .AddSeconds(currentTime.Value.Second);
                 }
             }
         }
@@ -71,15 +74,15 @@
 
     public override void BeginEdit(EditEntryMode entryMode, string? editValue, string key)
     {
-        /*var canParse = DateTime.TryParse(editValue?.ToString(), out var parsedDateTime);
-            if (canParse)
-            {
-                CurrentDateTime = parsedDateTime;
-            }
-            else
-            {
-                CurrentDateTime = DateTime.Now;
-            }*/
-    }
+        var canParse = DateTime.TryParse(editValue?.ToString(), out var parsedDateTime);
 
+        if (canParse)
+        {
+            currentDateTimeProperty = parsedDateTime;
+        }
+        else
+        {
+            currentDateTimeProperty = DateTime.Now;
+        }
+    }
 }

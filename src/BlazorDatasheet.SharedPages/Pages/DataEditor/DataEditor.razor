@@ -89,7 +89,7 @@ else
         <!-- CustomCellTypeDefinitions is for the TimeEditorComponent and TimeRenderer -->
 
         <Datasheet @ref="_datasheet"
-                   CustomCellTypeDefinitions="CustomTypes" 
+                   CustomCellTypeDefinitions="CustomTypes"
                    Sheet="sheet"
                    CanUserMergeRows="false"
                    ShowColHeadings="true"
@@ -103,7 +103,7 @@ else
 }
 
 @code {
-    #nullable disable
+#nullable disable
 
     private Datasheet _datasheet;
     private Sheet sheet;
@@ -486,7 +486,10 @@ else
         int i = 0;
         foreach (DTODatabaseColumn objDatabaseColumn in paramDatabaseColumns)
         {
+            // Set the column headings
             sheet.Columns.SetHeadings(i, i, objDatabaseColumn.ColumnName);
+
+            // Set the column types
             sheet.Cells.SetType(new ColumnRegion(i), objDatabaseColumn.ColumnType);
 
             if (UseValidation)
@@ -510,16 +513,19 @@ else
             i++;
         }
 
+        // Load the data into the sheet
         int ii = 0;
         foreach (DataRow dataRow in paramDataTable.Rows)
         {
             i = 0;
             foreach (DTODatabaseColumn objDatabaseColumn in paramDatabaseColumns)
             {
+                // Set the cell value
                 sheet.Cells[ii, i].Value = GetCellValue(dataRow[i].ToString(), objDatabaseColumn.ColumnType);
 
                 if (objDatabaseColumn.IsPrimaryKey)
                 {
+                    // Set the cell to read only if it is a primary key
                     sheet.Cells[ii, i].Format = new CellFormat() { IsReadOnly = true, BackgroundColor = "lightgrey" };
                 }
 
@@ -596,6 +602,41 @@ else
                             else
                             {
                                 row[j] = Convert.ToInt32(sheet.Cells[i, j].Value);
+                            }
+                        }
+                        else if (CurrentDataTable.Columns[j].DataType.FullName == "System.DateTime")
+                        {
+                            if (sheet.Cells[i, j]?.Value?.ToString() == "")
+                            {
+                                row[j] = DBNull.Value;
+                            }
+                            else
+                            {
+                                row[j] = Convert.ToDateTime(sheet.Cells[i, j].Value);
+                            }
+                        }
+                        else if (CurrentDataTable.Columns[j].DataType.FullName == "System.TimeSpan")
+                        {
+                            if (sheet.Cells[i, j]?.Value?.ToString() == "")
+                            {
+                                row[j] = DBNull.Value;
+                            }
+                            else
+                            {
+                                var TimeSpanValue = sheet.Cells[i, j].Value.ToString();
+
+                                if (DateTime.TryParse(TimeSpanValue, out var parsedDateTime))
+                                {
+                                    row[j] = parsedDateTime.TimeOfDay.ToString();
+                                }
+                                else if (TimeSpan.TryParse(TimeSpanValue, out var parsedTimeSpan))
+                                {
+                                    row[j] = parsedTimeSpan;
+                                }
+                                else
+                                {
+                                    row[j] = TimeSpanValue;
+                                }
                             }
                         }
                         else
@@ -692,7 +733,7 @@ else
                 // Sanitize parameter name
                 string paramName = columnName.Replace(" ", "_");
 
-                object columnValue = rowCur[i] != DBNull.Value ? rowCur[i] : DBNull.Value;                
+                object columnValue = rowCur[i] != DBNull.Value ? rowCur[i] : DBNull.Value;
 
                 if (PrimaryKeys.Contains(columnName))
                 {
@@ -1058,6 +1099,11 @@ else
         if (paramType.Contains("int"))
         {
             return typeof(int);
+        }
+
+        if (paramType.StartsWith("time"))
+        {
+            return typeof(TimeSpan);
         }
 
         if (paramType.Contains("char"))

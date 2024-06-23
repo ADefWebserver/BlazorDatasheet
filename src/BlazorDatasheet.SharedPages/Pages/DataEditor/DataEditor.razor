@@ -491,8 +491,7 @@ else
             sheet.Columns.SetHeadings(i, i, objDatabaseColumn.ColumnName);
 
             // Set the column types
-            // Causes: https://github.com/anmcgrath/BlazorDatasheet/issues/82
-            // sheet.Cells.SetType(new ColumnRegion(i), objDatabaseColumn.ColumnType);
+            sheet.Cells.SetType(new ColumnRegion(i), objDatabaseColumn.ColumnType);
 
             if (UseValidation)
             {
@@ -524,7 +523,6 @@ else
             {
                 // Set the cell value
                 sheet.Cells[ii, i].Value = GetCellValue(dataRow[i].ToString(), objDatabaseColumn.ColumnType);
-                sheet.Cells[ii, i].Type = objDatabaseColumn.ColumnType;
 
                 if (objDatabaseColumn.IsPrimaryKey)
                 {

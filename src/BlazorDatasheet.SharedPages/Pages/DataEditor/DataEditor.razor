@@ -84,13 +84,14 @@
 }
 else
 {
-    <div style="overflow: scroll; width: 800px; height: 400px;">
+    <div style="overflow-y: auto; overflow-x: scroll; width: 800px; height: 400px;">
 
         <!-- CustomCellTypeDefinitions is for the TimeEditorComponent and TimeRenderer -->
 
         <Datasheet @ref="_datasheet"
                    CustomCellTypeDefinitions="CustomTypes"
                    Sheet="sheet"
+                   Virtualise="true"
                    CanUserMergeRows="false"
                    ShowColHeadings="true"
                    ShowRowHeadings="true"
@@ -490,7 +491,8 @@ else
             sheet.Columns.SetHeadings(i, i, objDatabaseColumn.ColumnName);
 
             // Set the column types
-            sheet.Cells.SetType(new ColumnRegion(i), objDatabaseColumn.ColumnType);
+            // Causes: https://github.com/anmcgrath/BlazorDatasheet/issues/82
+            // sheet.Cells.SetType(new ColumnRegion(i), objDatabaseColumn.ColumnType);
 
             if (UseValidation)
             {
@@ -522,6 +524,7 @@ else
             {
                 // Set the cell value
                 sheet.Cells[ii, i].Value = GetCellValue(dataRow[i].ToString(), objDatabaseColumn.ColumnType);
+                sheet.Cells[ii, i].Type = objDatabaseColumn.ColumnType;
 
                 if (objDatabaseColumn.IsPrimaryKey)
                 {

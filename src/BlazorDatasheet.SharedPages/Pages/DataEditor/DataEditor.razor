@@ -104,7 +104,7 @@ else
 }
 
 @code {
-#nullable disable
+    #nullable disable
 
     private Datasheet _datasheet;
     private Sheet sheet;
@@ -155,12 +155,6 @@ else
     #region Datasheet Events
     private void btnSave()
     {
-        if (SavingDisabled)
-        {
-            ShowPrimaryKeyWarningDialog();
-            return;
-        }
-
         try
         {
             SaveData();
@@ -422,6 +416,8 @@ else
                 if (PrimaryKeys.Count == 0)
                 {
                     SavingDisabled = true;
+
+                    ShowPrimaryKeyWarningDialog();
 
                     // Get the data from the selected table
                     sql = $"SELECT 0 AS _Id, {strTableNames} FROM {selectedTable}";

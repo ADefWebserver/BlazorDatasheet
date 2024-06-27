@@ -104,7 +104,7 @@ else
 }
 
 @code {
-    #nullable disable
+#nullable disable
 
     private Datasheet _datasheet;
     private Sheet sheet;
@@ -192,7 +192,14 @@ else
         // Only add the row if one cell is changed
         if ((args.Positions.Count() > 0) && (args.Positions.Count() < 2))
         {
-            ColChangedRows.Add(Convert.ToInt32(args.Positions.FirstOrDefault().row));
+            // Get the row number
+            int row = Convert.ToInt32(args.Positions.FirstOrDefault().row);
+
+            // Use that row number to get the hidden _Id value
+            int _Id = Convert.ToInt32(sheet.Cells[row, 0].Value);
+
+            // Add the row to the list of changed rows
+            ColChangedRows.Add(_Id);
         }
     }
     #endregion
@@ -674,21 +681,21 @@ else
     {
         try
         {
-            // ********************************************************************************************************************
+            // *****************************************
             // Updates
-            // ********************************************************************************************************************
+            // *****************************************
 
             ProcessUpdatedRows();
 
-            // ********************************************************************************************************************
+            // *****************************************
             // Inserts
-            // ********************************************************************************************************************
+            // *****************************************
 
             ProcessInsertedRows();
 
-            // ********************************************************************************************************************
+            // *****************************************
             // Deletes
-            // ********************************************************************************************************************
+            // *****************************************
 
             ProcessDeletedRows();
         }
@@ -710,11 +717,12 @@ else
         // Process each changed row
         foreach (int row in ColChangedRows)
         {
-            DataRow rowCur = CurrentDataTable.Rows[row];
-
             // Skip rows where _Id column is 0 or null
-            if (rowCur[0] == DBNull.Value || rowCur[0] == null)
+            if (row == 0)
                 continue;
+
+            // Get row from CurrentDataTable where _Id matches
+            DataRow rowCur = CurrentDataTable.Select($"_Id = {row}").FirstOrDefault();
 
             var colSQLUpdateColumns = new List<string>();
             var colSQLWhereColumns = new List<string>();

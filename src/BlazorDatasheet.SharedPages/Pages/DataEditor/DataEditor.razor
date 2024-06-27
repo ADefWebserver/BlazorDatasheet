@@ -172,7 +172,7 @@ else
             return;
         }
 
-        sheet.Rows.InsertRowAt(sheet.Selection.ActiveRegion.TopLeft.row);
+        sheet.Rows.InsertAt(sheet.Selection.ActiveRegion.TopLeft.row);
     }
 
     private void RemoveRow()
@@ -478,7 +478,7 @@ else
         sheet.Commands.PauseHistory();
 
         // Hide the _Id column
-        sheet.Columns.SetWidth(0, 0);
+        sheet.Columns.Hide(0, 0);
 
         int i = 0;
         foreach (DTODatabaseColumn objDatabaseColumn in paramDatabaseColumns)
@@ -537,7 +537,7 @@ else
 
         // Wire up a method to catch row changes
         // Do not allow the last row to be deleted
-        sheet.Rows.RowRemoved += (sender, args) =>
+        sheet.Rows.Removed += (sender, args) =>
         {
             // Turn off history
             sheet.BatchUpdates();
@@ -545,7 +545,7 @@ else
 
             if (sheet.NumRows == 0)
             {
-                sheet.Rows.InsertRowAt(0);
+                sheet.Rows.InsertAt(0);
             }
 
             // Turn off history

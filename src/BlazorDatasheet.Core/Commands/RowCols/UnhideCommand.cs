@@ -27,7 +27,10 @@ public class UnhideCommand : IUndoableCommand
     public bool Undo(Sheet sheet)
     {
         sheet.GetRowColStore(_axis).Restore(_restoreData);
-        sheet.MarkDirty(new RowRegion(_start, _end));
+        IRegion dirtyRegion = _axis == Axis.Col
+            ? new ColumnRegion(0, int.MaxValue)
+            : new RowRegion(0, int.MaxValue);
+        sheet.MarkDirty(dirtyRegion);
         return true;
     }
 }

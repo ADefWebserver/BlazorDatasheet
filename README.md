@@ -1,4 +1,3 @@
-# due to this error from upstream (https://github.com/anmcgrath/BlazorDatasheet/issues/91) use: https://github.com/ADefWebserver/BlazorDatasheet/tree/LastWorking
 # BlazorDatasheet
 
 A simple datasheet component for editing tabular data.
